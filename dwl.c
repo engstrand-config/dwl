@@ -294,6 +294,7 @@ static void destroylayersurfacenotify(struct wl_listener *listener, void *data);
 static void destroynotify(struct wl_listener *listener, void *data);
 static void destroynotify_sub(struct wl_listener *listener, void *data);
 static Monitor *dirtomon(enum wlr_direction dir);
+static void dragdestroy(struct wl_listener *listener, void *data);
 static void focusclient(Client *c, int lift);
 static void focusmon(const Arg *arg);
 static void focusstack(const Arg *arg);
@@ -324,8 +325,10 @@ static void quit(const Arg *arg);
 static void quitsignal(int signo);
 static void render(struct wlr_surface *surface, int sx, int sy, void *data);
 static void renderclients(Monitor *m, struct timespec *now);
+static void renderdragicon(Monitor *m, struct timespec *now);
 static void renderlayer(struct wl_list *layer_surfaces, struct timespec *now);
 static void rendermon(struct wl_listener *listener, void *data);
+static void requeststartdrag(struct wl_listener *listener, void *data);
 static void resize(Client *c, int x, int y, int w, int h, int interact);
 static void run(char *startup_cmd);
 static void scalebox(struct wlr_box *box, float scale);
@@ -341,6 +344,7 @@ static void setmon(Client *c, Monitor *m, unsigned int newtags);
 static void setup(char* config_file);
 static void sigchld(int unused);
 static void spawn(const Arg *arg);
+static void startdrag(struct wl_listener *listener, void *data);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
@@ -406,6 +410,7 @@ static struct wl_list keyboards;
 static unsigned int cursor_mode;
 static Client *grabc;
 static int grabcx, grabcy; /* client-relative */
+static struct wlr_drag_icon* drag_icon;
 
 static struct wlr_output_layout *output_layout;
 static struct wlr_box sgeom;
@@ -432,6 +437,9 @@ static struct wl_listener request_activate = {.notify = urgent};
 static struct wl_listener request_cursor = {.notify = setcursor};
 static struct wl_listener request_set_psel = {.notify = setpsel};
 static struct wl_listener request_set_sel = {.notify = setsel};
+static struct wl_listener request_start_drag = {.notify = requeststartdrag};
+static struct wl_listener start_drag = {.notify = startdrag};
+static struct wl_listener drag_destroy = {.notify = dragdestroy};
 
 /* dscm event handlers */
 static struct dscm_monitor_v1_interface dscm_monitor_implementation = {
@@ -1784,20 +1792,10 @@ pointerfocus(Client *c, struct wlr_surface *surface, double sx, double sy,
 		time = now.tv_sec * 1000 + now.tv_nsec / 1000000;
 	}
 
-	/* If surface is already focused, only notify of motion */
-	if (surface == seat->pointer_state.focused_surface) {
-		wlr_seat_pointer_notify_motion(seat, time, sx, sy);
-		return;
-	}
-
-	/* Otherwise, let the client know that the mouse cursor has entered one
-	 * of its surfaces, and make keyboard focus follow if desired. */
 	wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
+	wlr_seat_pointer_notify_motion(seat, time, sx, sy);
 
-	if (!c || client_is_unmanaged(c))
-		return;
-
-	if (sloppyfocus && !internal_call)
+	if (sloppyfocus && c && !client_is_unmanaged(c) && !internal_call)
 		focusclient(c, 0);
 }
 
@@ -1960,6 +1958,19 @@ renderclients(Monitor *m, struct timespec *now)
 }
 
 void
+renderdragicon(Monitor *m, struct timespec *now)
+{
+	struct render_data rdata;
+	if (!drag_icon || !drag_icon->mapped || xytomon(cursor->x, cursor->y) != m)
+		return;
+	rdata.output = m->wlr_output;
+	rdata.when = now;
+	rdata.x = cursor->x;
+	rdata.y = cursor->y;
+	wlr_surface_for_each_surface(drag_icon->surface, render, &rdata);
+}
+
+void
 renderlayer(struct wl_list *layer_surfaces, struct timespec *now)
 {
 	LayerSurface *layersurface;
@@ -2024,6 +2035,7 @@ rendermon(struct wl_listener *listener, void *data)
 #endif
 	renderlayer(&m->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP], &now);
 	renderlayer(&m->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY], &now);
+	renderdragicon(m, &now);
 
 	/* Hardware cursors are rendered by the GPU on a separate plane, and can be
 	 * moved around without re-rendering what's beneath them - which is more
@@ -2067,6 +2079,18 @@ setupsignals() {
         sa.sa_handler = SIG_IGN;
         for (int i = SIGRTMIN; i <= SIGRTMAX; i++)
                 sigaction(i, &sa, NULL);
+}
+
+void
+requeststartdrag(struct wl_listener *listener, void *data)
+{
+	struct wlr_seat_request_start_drag_event *event = data;
+
+	if (wlr_seat_validate_pointer_grab_serial(seat, event->origin,
+			event->serial))
+		wlr_seat_start_pointer_drag(seat, event->drag, event->serial);
+	else
+		wlr_data_source_destroy(event->drag->source);
 }
 
 void
@@ -2518,6 +2542,8 @@ setup(char *config_file)
 			&request_set_sel);
 	wl_signal_add(&seat->events.request_set_primary_selection,
 			&request_set_psel);
+	wl_signal_add(&seat->events.request_start_drag, &request_start_drag);
+	wl_signal_add(&seat->events.start_drag, &start_drag);
 
 	output_mgr = wlr_output_manager_v1_create(dpy);
 	wl_signal_add(&output_mgr->events.apply, &output_mgr_apply);
@@ -2572,6 +2598,26 @@ spawn(const Arg *arg)
 		execvp(((char **)arg->v)[0], (char **)arg->v);
 		EBARF("dwl: execvp %s failed", ((char **)arg->v)[0]);
 	}
+}
+
+void
+dragdestroy(struct wl_listener *listener, void *data)
+{
+	drag_icon = NULL;
+	// Focus enter isn't sent during drag, so refocus the focused node.
+	focusclient(selclient(), 1);
+}
+
+void
+startdrag(struct wl_listener *listener, void *data)
+{
+	struct wlr_drag *wlr_drag = data;
+	drag_icon = wlr_drag->icon;
+
+	if (!drag_icon)
+		return;
+
+	wl_signal_add(&wlr_drag->events.destroy, &drag_destroy);
 }
 
 void
