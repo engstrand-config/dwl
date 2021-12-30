@@ -1547,10 +1547,9 @@ mapnotify(struct wl_listener *listener, void *data)
 
         if (c->isfullscreen)
                 setfullscreen(c, 1);
-        /* Prevent new clients from stealing focus from fullscreen client
-         * on same monitor. */
+        /* Switch focus from fullscreened client if a new client is spawned. */
         else if (sel && sel->isfullscreen && VISIBLEON(sel, c->mon))
-                focusclient(sel, 1);
+                setfullscreen(sel, 0);
 
         // Damage the whole screen
         wlr_output_damage_add_whole(c->mon->damage);
