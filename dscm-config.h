@@ -16,6 +16,7 @@ static unsigned int gappiv      = 0;
 static unsigned int gappoh      = 0;
 static unsigned int gappov      = 0;
 static int smartgaps            = 0;
+static int smartborders         = 0;
 static float *rootcolor         = NULL;
 static float *bordercolor       = NULL;
 static float *focuscolor        = NULL;
@@ -150,6 +151,7 @@ dscm_config_parse(char *config_file)
         gappoh = dscm_alist_get_unsigned_int(config, "gaps-horizontal-outer", -1);
         gappov = dscm_alist_get_unsigned_int(config, "gaps-vertical-outer", -1);
         smartgaps = dscm_alist_get_int(config, "smart-gaps");
+        smartborders = dscm_alist_get_int(config, "smart-borders");
 
         SCM colors = dscm_alist_get(config, "colors");
         rootcolor = dscm_iterate_list(dscm_alist_get(colors, "root"),
