@@ -20,7 +20,7 @@
   (name "dwl-guile-devel")
   (inputs
     `(("guile-3.0" ,guile-3.0)
-      ("wlroots-0.14.0" ,wlroots-0.14.0)))
+      ("wlroots" ,wlroots)))
   (arguments
     (substitute-keyword-arguments
       (package-arguments dwl)
