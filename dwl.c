@@ -2457,8 +2457,7 @@ reloadconfig(int signal, void *data) {
         wl_list_for_each(c, &clients, link) {
                 if (c->bw > 0)
                         c->bw = borderpx;
-                /* TODO: This will also apply borders to clients that did not previously have borders */
-                resize(c, c->geom.x, c->geom.y, c->geom.width, c->geom.height, 0, 1);
+                resize(c, c->geom.x, c->geom.y, c->geom.width, c->geom.height, 0, c->bw);
         }
 
         /* Rearrange clients on all monitors */
