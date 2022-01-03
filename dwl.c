@@ -373,6 +373,7 @@ static void urgent(struct wl_listener *listener, void *data);
 static void view(const Arg *arg);
 static void viewprev(const Arg *arg);
 static void virtualkeyboard(struct wl_listener *listener, void *data);
+static void writepid(const char *runtimedir);
 static Client *xytoclient(double x, double y);
 static struct wlr_surface *xytolayersurface(struct wl_list *layer_surfaces,
                                             double x, double y,
@@ -2936,6 +2937,20 @@ virtualkeyboard(struct wl_listener *listener, void *data)
         createkeyboard(device);
 }
 
+void
+writepid(const char *runtimedir)
+{
+        /* Writes a pid file so that services managers like Shepherd
+         * can provision dwl-guile correcly to other services that
+         * depend on an existing wayland display. */
+        char buf[128];
+        FILE *pidfile;
+        snprintf(buf, 128, "%s/dwl-guile.pid", runtimedir);
+        pidfile = fopen(buf, "w");
+        fprintf(pidfile, "%d", getpid());
+        fclose(pidfile);
+}
+
 Client *
 xytoclient(double x, double y)
 {
@@ -3412,9 +3427,8 @@ dscm_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 int
 main(int argc, char *argv[])
 {
-        char *startup_cmd = NULL;
-        char *config_file = NULL;
         int c;
+        char *startup_cmd = NULL, *config_file = NULL, *runtimedir = NULL;
 
         while ((c = getopt(argc, argv, "s:c:h")) != -1) {
                 if (c == 's')
@@ -3429,7 +3443,7 @@ main(int argc, char *argv[])
 
         // Wayland requires XDG_RUNTIME_DIR for creating its communications
         // socket
-        if (!getenv("XDG_RUNTIME_DIR"))
+        if (!(runtimedir = getenv("XDG_RUNTIME_DIR")))
                 BARF("XDG_RUNTIME_DIR must be set");
         if (!config_file)
                 BARF("error: config path must be set using '-c'");
@@ -3437,6 +3451,7 @@ main(int argc, char *argv[])
         dscm_register();
         dscm_config_parse(config_file);
         setup(config_file);
+        writepid(runtimedir);
         run(startup_cmd);
         dscm_config_cleanup();
         cleanup();
