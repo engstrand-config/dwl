@@ -124,6 +124,7 @@ typedef struct {
         int prevwidth;
         int prevheight;
         int isfullscreen;
+        pid_t pid;
 } Client;
 
 typedef struct {
@@ -1085,8 +1086,11 @@ createnotify(struct wl_listener *listener, void *data)
         c->surface.xdg = xdg_surface;
         c->bw = borderpx;
         c->alpha = default_alpha;
+        c->isfullscreen = 0;
 
-        /* LISTEN(&xdg_surface->surface->events.commit, &c->commit, commitnotify); */
+        /* Get client pid */
+        wl_client_get_credentials(c->surface.xdg->client->client, &c->pid, NULL, NULL);
+
         LISTEN(&xdg_surface->surface->events.new_subsurface, &c->new_sub, new_subnotify);
         LISTEN(&xdg_surface->events.map, &c->map, mapnotify);
         LISTEN(&xdg_surface->events.unmap, &c->unmap, unmapnotify);
@@ -1094,7 +1098,6 @@ createnotify(struct wl_listener *listener, void *data)
         LISTEN(&xdg_surface->toplevel->events.set_title, &c->set_title, updatetitle);
         LISTEN(&xdg_surface->toplevel->events.request_fullscreen, &c->fullscreen,
                fullscreennotify);
-        c->isfullscreen = 0;
 }
 
 void

@@ -299,6 +299,23 @@ dscm_binding_defaultgaps()
         return SCM_BOOL_T;
 }
 
+static inline SCM
+dscm_binding_getclientcwd()
+{
+        /* TODO: Return SCM_BOOL_F on error? */
+        Client *c;
+        size_t read, size = 256;
+        char pathbuf[size], buf[size];
+        if (!(c = selclient()) || !c->pid)
+                return scm_string(SCM_EOL);
+        snprintf(pathbuf, size, "/proc/%u/cwd", (unsigned)c->pid);
+        if (!(read = readlink(pathbuf, buf, size - 1)))
+                return scm_string(SCM_EOL);
+        /* readlink does not null-terminate string */
+        buf[MIN(read, size - 1)] = '\0';
+        return scm_from_locale_string(buf);
+}
+
 static inline void
 dscm_register()
 {
@@ -371,4 +388,5 @@ dscm_register()
         scm_c_define_gsubr("dwl:gaps-inner-vertical", 1, 0, 0, &dscm_binding_incrivgaps);
         scm_c_define_gsubr("dwl:gaps-outer-horizontal", 1, 0, 0, &dscm_binding_incrohgaps);
         scm_c_define_gsubr("dwl:gaps-outer-vertical", 1, 0, 0, &dscm_binding_incrovgaps);
+        scm_c_define_gsubr("dwl:get-client-cwd", 0, 0, 0, &dscm_binding_getclientcwd);
 }
