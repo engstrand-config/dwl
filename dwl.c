@@ -2252,10 +2252,6 @@ setup(char *config_file)
 	wl_list_init(&mons);
 	wl_signal_add(&backend->events.new_output, &new_output);
 
-	/* Initializes the interface used to implement urgency hints */
-	activation = wlr_xdg_activation_v1_create(dpy);
-	wl_signal_add(&activation->events.request_activate, &request_activate);
-
 	/* Set up our client lists and the xdg-shell. The xdg-shell is a
 	 * Wayland protocol which is used for application windows. For more
 	 * detail on shells, refer to the article:
