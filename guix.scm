@@ -63,11 +63,11 @@
    (inputs
     (list wayland-1.20.0))))
 
-(define wlroots-0.15.0
+(define wlroots-0.15.1
   (package
    (inherit wlroots)
    (name "wlroots")
-   (version "0.15.0")
+   (version "0.15.1")
    (source
     (origin
      (method git-fetch)
@@ -76,7 +76,7 @@
            (commit version)))
      (file-name (git-file-name name version))
      (sha256
-      (base32 "0wdzs0wpv61pxgy3mx3xjsndyfmbj30v47d3w9ymmnd4r479n41n"))))
+      (base32 "00s73nhi3sc48l426jdlqwpclg41kx1hv0yk4yxhbzw19gqpfm1h"))))
    (propagated-inputs
     (modify-inputs (package-propagated-inputs wlroots)
                    (prepend libdrm-2.4.109)
@@ -88,8 +88,7 @@
   (source source)
   (name "dwl-guile-devel")
   (inputs
-    `(("guile-3.0" ,guile-3.0)
-      ("wlroots-0.15.0" ,wlroots-0.15.0)))
+    (list guile-3.0 wlroots-0.15.1))
   (arguments
     (substitute-keyword-arguments
       (package-arguments dwl)
