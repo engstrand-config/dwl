@@ -1457,7 +1457,7 @@ void
 mapnotify(struct wl_listener *listener, void *data)
 {
 	/* Called when the surface is mapped, or ready to display on-screen. */
-	Client *c = wl_container_of(listener, c, map);
+	Client *c = wl_container_of(listener, c, map), *sel = selclient();
 	int i;
 
 	/* Create scene tree for this client and its border */
@@ -1499,6 +1499,10 @@ mapnotify(struct wl_listener *listener, void *data)
 
 	if (c->isfullscreen)
 		setfullscreen(c, 1);
+	/* Prevent new clients from stealing focus from fullscreen client
+	 * on same monitor. */
+	else if (sel && sel->isfullscreen && VISIBLEON(sel, c->mon))
+		setfullscreen(sel, 0);
 
 	c->mon->un_map = 1;
 }
@@ -2047,6 +2051,9 @@ setfullscreen(Client *c, int fullscreen)
 		c->prevalpha = c->alpha;
 		c->alpha = 1;
 		resize(c, c->mon->m.x, c->mon->m.y, c->mon->m.width, c->mon->m.height, 0, !smartborders);
+
+		/* Ensure that the fullscreened client is the top client */
+		wlr_scene_node_raise_to_top(c->scene);
 	} else {
 		c->alpha = c->prevalpha;
 		/* restore previous size instead of arrange for floating windows since
