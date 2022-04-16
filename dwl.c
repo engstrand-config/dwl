@@ -1395,18 +1395,12 @@ keybinding(uint32_t mods, xkb_keycode_t keycode)
 void
 keypress(struct wl_listener *listener, void *data)
 {
-	int i;
 	/* This event is raised when a key is pressed or released. */
 	Keyboard *kb = wl_container_of(listener, kb, key);
 	struct wlr_event_keyboard_key *event = data;
 
 	/* Translate libinput keycode -> xkbcommon */
 	uint32_t keycode = event->keycode + 8;
-	/* Get a list of keysyms based on the keymap for this keyboard */
-	const xkb_keysym_t *syms;
-	int nsyms = xkb_state_key_get_syms(
-		kb->device->keyboard->xkb_state, keycode, &syms);
-
 	int handled = 0;
 	uint32_t mods = wlr_keyboard_get_modifiers(kb->device->keyboard);
 
@@ -1415,13 +1409,6 @@ keypress(struct wl_listener *listener, void *data)
 	if (!input_inhibit_mgr->active_inhibitor
 	    && event->state == WL_KEYBOARD_KEY_STATE_PRESSED)
 		handled = keybinding(mods, keycode) || handled;
-
-	/* On _press_ if there is no active screen locker,
-	 * attempt to process a compositor keybinding. */
-	if (!input_inhibit_mgr->active_inhibitor
-	    && event->state == WL_KEYBOARD_KEY_STATE_PRESSED)
-		for (i = 0; i < nsyms; i++)
-			handled = keybinding(mods, syms[i]) || handled;
 
 	if (!handled) {
 		/* Pass unhandled keycodes along to the client. */
