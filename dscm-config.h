@@ -9,6 +9,7 @@ static int repeat_delay         = 600;
 static int sloppyfocus          = 1;
 static int tap_to_click         = 1;
 static int natural_scrolling    = 1;
+static int lockfullscreen       = 1;
 static unsigned int borderpx    = 1;
 static double default_alpha     = 1.0;
 static unsigned int gappih      = 0;
@@ -98,7 +99,7 @@ dscm_parse_key(unsigned int index, SCM key, void *data)
         /* Should we use `xkb_keycode_is_legal_x11`? */
         if (!xkb_keycode_is_legal_x11(keycode)
                 || !xkb_keycode_is_legal_ext(keycode))
-                BARF("dscm: keycode '%d' is not a legal keycode\n", keycode);
+                die("dscm: keycode '%d' is not a legal keycode\n", keycode);
         ((Key*)data)[index] = (Key){
                 .mod = dscm_alist_get_modifiers(key, "modifiers"),
                 .keycode = keycode,
@@ -139,6 +140,7 @@ dscm_config_parse(char *config_file)
         scm_c_primitive_load(config_file);
         config = dscm_get_variable("config");
 
+        lockfullscreen = dscm_alist_get_int(config, "lock-fullscreen");
         sloppyfocus = dscm_alist_get_int(config, "sloppy-focus");
         tap_to_click = dscm_alist_get_int(config, "tap-to-click");
         natural_scrolling = dscm_alist_get_int(config, "natural-scrolling");

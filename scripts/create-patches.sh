@@ -16,10 +16,11 @@ do
     git fetch origin patch/$patch
     git diff $DIFF_ORIGIN patch/$patch \
         ':(exclude)README.md' \
+        ':(exclude)README.org' \
         ':(exclude)patches' \
         ':(exclude)scripts/create-patches.sh' \
         ':(exclude).gitignore' > patches/$patch.patch
 done
 
-# Create dwl-guile patch based on dwl v0.2.1
-git diff v0.2.1 > patches/dwl-guile.patch
+# Create dwl-guile patch based on dwl v0.3.1
+git diff v0.3.1 > patches/dwl-guile.patch
