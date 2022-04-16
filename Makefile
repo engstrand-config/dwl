@@ -1,6 +1,6 @@
 include config.mk
 
-CFLAGS += -I. -DWLR_USE_UNSTABLE -std=c99 -Wno-declaration-after-statement
+CFLAGS += -I. -DWLR_USE_UNSTABLE -std=c99 -Wno-declaration-after-statement -pedantic
 
 WAYLAND_PROTOCOLS=$(shell pkg-config --variable=pkgdatadir wayland-protocols)
 WAYLAND_SCANNER=$(shell pkg-config --variable=wayland_scanner wayland-scanner)
@@ -15,10 +15,11 @@ clean:
 	rm -f dwl *.o *-protocol.h *-protocol.c
 
 install: dwl
-	install -D dwl $(PREFIX)/bin/dwl
+	install -Dm755 dwl $(PREFIX)/bin/dwl
+	install -Dm644 dwl.1 $(MANDIR)/man1/dwl.1
 
 uninstall:
-	rm -f $(PREFIX)/bin/dwl
+	rm -f $(PREFIX)/bin/dwl $(MANDIR)/man1/dwl.1
 
 .PHONY: all clean install uninstall
 
@@ -65,6 +66,6 @@ dscm-unstable-v1-protocol.c:
 
 dscm-unstable-v1-protocol.o: dscm-unstable-v1-protocol.h
 
-dwl.o: dscm-utils.h dscm-bindings.h dscm-config.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h idle-protocol.h dscm-unstable-v1-protocol.h
+dwl.o: dscm-utils.h dscm-bindings.h dscm-config.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h idle-protocol.h dscm-unstable-v1-protocol.h util.h
 
-dwl: xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o idle-protocol.o dscm-unstable-v1-protocol.o
+dwl: xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o idle-protocol.o util.o dscm-unstable-v1-protocol.o
