@@ -140,9 +140,7 @@ dscm_config_parse(char *config_file)
         scm_c_primitive_load(config_file);
         config = dscm_get_variable("config");
 
-        /* TODO: Implement this */
-        /* lockfullscreen = dscm_alist_get_int(config, "lock-fullscreen"); */
-        lockfullscreen = 1;
+        lockfullscreen = dscm_alist_get_int(config, "lock-fullscreen");
         sloppyfocus = dscm_alist_get_int(config, "sloppy-focus");
         tap_to_click = dscm_alist_get_int(config, "tap-to-click");
         natural_scrolling = dscm_alist_get_int(config, "natural-scrolling");
