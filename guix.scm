@@ -131,7 +131,9 @@
   (inputs
    (modify-inputs (package-inputs dwl)
                   (prepend guile-3.0
-                           wayland-1.21.0)
+                           wayland-1.21.0
+                           xorg-server-xwayland-22.1.5
+                           xcb-util-wm)
                   (replace "wlroots" wlroots-0.16.0)))
   (arguments
     (substitute-keyword-arguments
