@@ -29,7 +29,6 @@
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_output_damage.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output_management_v1.h>
 #include <wlr/types/wlr_pointer.h>
@@ -66,7 +65,6 @@
 #define VISIBLEON(C, M)         ((M) && (C)->mon == (M) && ((C)->tags & (M)->tagset[(M)->seltags]))
 #define LENGTH(X)               (sizeof X / sizeof X[0])
 #define ROUND(X)                ((int)((X)+0.5))
-#define TAGMASK                 ((1 << LENGTH(tags)) - 1)
 #define LISTEN(E, L, H)         wl_signal_add((E), ((L)->notify = (H), (L)))
 
 /* constants */
@@ -168,10 +166,9 @@ typedef struct {
 } LayerSurface;
 
 typedef struct {
-        const char *symbol;
+        char *symbol;
         scm_t_bits *arrange;
         char *id;
-        void (*arrange)(Monitor *);
 } Layout;
 
 typedef struct {
@@ -210,15 +207,14 @@ struct Monitor {
 };
 
 typedef struct {
-        const char *name;
+        char *name;
         float mfact;
         int nmaster;
         float scale;
         const Layout *lt;
         enum wl_output_transform rr;
-        /* TODO: Include tehse? */
-        /* int x; */
-        /* int y; */
+        int x;
+        int y;
 } MonitorRule;
 
 typedef struct {
@@ -578,7 +574,6 @@ arrange(Monitor *m)
                 wlr_scene_node_set_enabled(c->scene, VISIBLEON(c, c->mon));
 
         if (m->lt[m->sellt]->arrange)
-                m->lt[m->sellt]->arrange(m);
                 dscm_safe_call(DSCM_CALL_ARRANGE, m->lt[m->sellt]->arrange, m);
         /* TODO recheck pointer focus here... or in resize()? */
 }
@@ -998,7 +993,7 @@ createmon(struct wl_listener *listener, void *data)
         m->tagset[0] = m->tagset[1] = 1;
         for (int i = 0; i < nummonrules; i++) {
                 r = monrules[i];
-                if (!r->name || strstr(wlr_output->name, r.name)) {
+                if (!r.name || strstr(wlr_output->name, r.name)) {
                         m->mfact = r.mfact;
                         m->nmaster = r.nmaster;
                         wlr_output_set_scale(wlr_output, r.scale);
@@ -1151,14 +1146,6 @@ destroyidleinhibitor(struct wl_listener *listener, void *data)
 }
 
 void
-destroyidleinhibitor(struct wl_listener *listener, void *data)
-{
-        /* I've been testing and at this point the inhibitor has not yet been
-         * removed from the list, checking if it has at least one item. */
-        wlr_idle_set_enabled(idle, seat, wl_list_length(&idle_inhibit_mgr->inhibitors) <= 1);
-}
-
-void
 destroylayersurfacenotify(struct wl_listener *listener, void *data)
 {
         LayerSurface *layersurface = wl_container_of(listener, layersurface, destroy);
@@ -1174,7 +1161,6 @@ destroylayersurfacenotify(struct wl_listener *listener, void *data)
                 Monitor *m = layersurface->layer_surface->output->data;
                 if (m) {
                         arrangelayers(m);
-                        wlr_output_damage_add_whole(m->damage);
                 }
                 layersurface->layer_surface->output = NULL;
         }
@@ -1258,7 +1244,7 @@ focusclient(Client *c, int lift)
                  * It's probably pointless to check if old is a layer surface
                  * since it can't be anything else at this point. */
                 if (wlr_surface_is_layer_surface(old)) {
-                        struct wlr_layer_surface_v1 *oldsurface =
+                        struct wlr_layer_surface_v1 *wlr_layer_surface =
                                 wlr_layer_surface_v1_from_wlr_surface(old);
 
                         if (wlr_layer_surface->mapped && (
@@ -1416,12 +1402,18 @@ keybinding(uint32_t mods, xkb_keycode_t keycode)
 void
 keypress(struct wl_listener *listener, void *data)
 {
+        int i;
         /* This event is raised when a key is pressed or released. */
         Keyboard *kb = wl_container_of(listener, kb, key);
         struct wlr_event_keyboard_key *event = data;
 
         /* Translate libinput keycode -> xkbcommon */
         uint32_t keycode = event->keycode + 8;
+        /* Get a list of keysyms based on the keymap for this keyboard */
+        const xkb_keysym_t *syms;
+        int nsyms = xkb_state_key_get_syms(
+                        kb->device->keyboard->xkb_state, keycode, &syms);
+
         int handled = 0;
         uint32_t mods = wlr_keyboard_get_modifiers(kb->device->keyboard);
 
@@ -1581,12 +1573,12 @@ motionnotify(uint32_t time)
         if (cursor_mode == CurMove) {
                 /* Move the grabbed client to the new position. */
                 resize(grabc, cursor->x - grabcx, cursor->y - grabcy,
-                                grabc->geom.width, grabc->geom.height, 1);
+                                grabc->geom.width, grabc->geom.height, 1, 0);
                 return;
         } else if (cursor_mode == CurResize) {
                 resize(grabc, grabc->geom.x, grabc->geom.y,
                                 cursor->x - grabc->geom.x,
-                                cursor->y - grabc->geom.y, 1);
+                                cursor->y - grabc->geom.y, 1, 0);
                 return;
         }
 
@@ -2137,7 +2129,7 @@ setmon(Client *c, Monitor *m, unsigned int newtags)
         }
         if (m) {
                 /* Make sure window actually overlaps with the monitor */
-                resize(c, c->geom.x, c->geom.y, c->geom.width, c->geom.height, 0);
+                resize(c, c->geom.x, c->geom.y, c->geom.width, c->geom.height, 0, 1);
                 wlr_surface_send_enter(client_surface(c), m->wlr_output);
                 c->tags = newtags ? newtags : m->tagset[m->seltags]; /* assign tags of target monitor */
                 arrange(m);

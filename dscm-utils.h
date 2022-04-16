@@ -61,7 +61,7 @@ dscm_alist_get_proc_pointer(SCM alist, const char *key)
         SCM eval = scm_primitive_eval(value);
         /* SCM_UNPACK_POINTER is only allowed on expressions where SCM_IMP is 0 */
         if (SCM_IMP(eval) == 1)
-                BARF("dscm: invalid callback procedure. SCM_IMP(proc) = 1");
+                die("dscm: invalid callback procedure. SCM_IMP(proc) = 1");
         if (scm_procedure_p(eval) == SCM_BOOL_T) {
                 proc = SCM_UNPACK_POINTER(eval);
                 scm_gc_protect_object(eval);
