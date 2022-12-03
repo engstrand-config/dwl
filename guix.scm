@@ -5,9 +5,15 @@
              (guix download)
              (guix git-download)
              (gnu packages wm)
+             (gnu packages gl)
+             (gnu packages xorg)
+             (gnu packages admin)
+             (gnu packages linux)
              (gnu packages guile)
-             (gnu packages xdisorg)
              (gnu packages libffi)
+             (gnu packages libbsd)
+             (gnu packages xdisorg)
+             (gnu packages pciutils)
              (gnu packages freedesktop))
 
 (define this-directory
@@ -18,11 +24,11 @@
               #:recursive? #t
               #:select? (git-predicate this-directory)))
 
-(define libdrm-2.4.109
+(define libdrm-2.4.113
   (package
    (inherit libdrm)
    (name "libdrm")
-   (version "2.4.109")
+   (version "2.4.113")
    (source (origin
             (method url-fetch)
             (uri (string-append
@@ -30,44 +36,64 @@
                   version ".tar.xz"))
             (sha256
              (base32
-              "09kzrdsd14zr0i3izvi5mck4vqccl3c9hr84r9i4is0zikh554v2"))))))
+              "1qg54drng3mxm64dsxgg0l6li4yrfzi50bgj0r3fnfzncwlypmvz"))))))
 
-(define wayland-1.20.0
+(define wayland-1.21.0
   (package
    (inherit wayland)
    (name "wayland")
-   (version "1.20.0")
+   (version "1.21.0")
    (source (origin
             (method url-fetch)
-            (uri (string-append "https://wayland.freedesktop.org/releases/"
-                                name "-" version ".tar.xz"))
+            (uri (string-append "https://gitlab.freedesktop.org/wayland/wayland/-/releases/"
+                                version "/downloads/" name "-" version ".tar.xz"))
             (sha256
              (base32
-              "09c7rpbwavjg4y16mrfa57gk5ix6rnzpvlnv1wp7fnbh9hak985q"))))
+              "1b0ixya9bfw5c9jx8mzlr7yqnlyvd3jv5z8wln9scdv8q5zlvikd"))))
    (propagated-inputs
     (list libffi))))
 
-(define wayland-protocols-1.24
+(define wayland-protocols-1.27
   (package
    (inherit wayland-protocols)
    (name "wayland-protocols")
-   (version "1.24")
+   (version "1.27")
    (source (origin
             (method url-fetch)
             (uri (string-append
-                  "https://wayland.freedesktop.org/releases/"
-                  "wayland-protocols-" version ".tar.xz"))
+                  "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/releases/"
+                  version "/downloads/" name "-" version ".tar.xz"))
             (sha256
              (base32
-              "1hlb6gvyqlmsdkv5179ccj07p04cn6xacjkgklakbszczv7xiw5z"))))
+              "0p1pafbcc8b8p3175b03cnjpbd9zdgxsq0ssjq02lkjx885g2ilh"))))
    (inputs
-    (list wayland-1.20.0))))
+    (modify-inputs (package-inputs wayland-protocols)
+                   (replace "wayland" wayland-1.21.0)))))
 
-(define wlroots-0.15.1
+(define xorg-server-xwayland-22.1.5
+  (package
+   (inherit xorg-server-xwayland)
+   (name "xorg-server-xwayland")
+   (version "22.1.5")
+   (source
+    (origin
+     (method url-fetch)
+     (uri (string-append "https://xorg.freedesktop.org/archive/individual"
+                         "/xserver/xwayland-" version ".tar.xz"))
+     (sha256
+      (base32
+       "0whnmi2v1wvaw8y7d32sb2avsjhyj0h18xi195jj30wz24gsq5z3"))))
+   (inputs
+    (modify-inputs (package-inputs xorg-server-xwayland)
+                   (prepend libbsd libxcvt)
+                   (replace "wayland" wayland-1.21.0)
+                   (replace "wayland-protocols" wayland-protocols-1.27)))))
+
+(define wlroots-0.16.0
   (package
    (inherit wlroots)
    (name "wlroots")
-   (version "0.15.1")
+   (version "0.16.0")
    (source
     (origin
      (method git-fetch)
@@ -76,19 +102,36 @@
            (commit version)))
      (file-name (git-file-name name version))
      (sha256
-      (base32 "00s73nhi3sc48l426jdlqwpclg41kx1hv0yk4yxhbzw19gqpfm1h"))))
+      (base32 "18rfr3wfm61dv9w8m4xjz4gzq2v3k5vx35ymbi1cggkgbk3lbc4k"))))
+   (inputs
+    (modify-inputs (package-inputs wlroots)
+                   (prepend `(,hwdata "pnp"))))
    (propagated-inputs
     (modify-inputs (package-propagated-inputs wlroots)
-                   (prepend libdrm-2.4.109)
-                   (replace "wayland-protocols" wayland-protocols-1.24)
-                   (replace "wayland" wayland-1.20.0)))))
+                   (prepend libdrm-2.4.113)
+                   (replace "wayland" wayland-1.21.0)
+                   (replace "wayland-protocols" wayland-protocols-1.27)
+                   (replace "xorg-server-xwayland" xorg-server-xwayland-22.1.5)))
+   (arguments
+    (substitute-keyword-arguments
+     (package-arguments wlroots)
+     ((#:phases phases)
+      #~(modify-phases
+         #$phases
+         (add-after 'unpack 'patch-hwdata-path
+                    (lambda* (#:key inputs #:allow-other-keys)
+                      (substitute* "backend/drm/meson.build"
+                                   (("/usr/share/hwdata/pnp.ids")
+                                    (search-input-file inputs "share/hwdata/pnp.ids")))))))))))
 
 (package
   (inherit dwl)
   (source source)
   (name "dwl-guile-devel")
   (inputs
-    (list guile-3.0 wlroots-0.15.1))
+   (modify-inputs (package-inputs dwl)
+                  (prepend guile-3.0)
+                  (replace "wlroots" wlroots-0.16.0)))
   (arguments
     (substitute-keyword-arguments
       (package-arguments dwl)

@@ -1,6 +1,6 @@
 include config.mk
 
-CFLAGS += -I. -DWLR_USE_UNSTABLE -std=c99 -Wno-declaration-after-statement
+CFLAGS += -I. -DWLR_USE_UNSTABLE -std=c99 -Wno-declaration-after-statement -Wno-unused-label
 
 WAYLAND_PROTOCOLS=$(shell pkg-config --variable=pkgdatadir wayland-protocols)
 WAYLAND_SCANNER=$(shell pkg-config --variable=wayland_scanner wayland-scanner)
@@ -46,16 +46,6 @@ wlr-layer-shell-unstable-v1-protocol.c:
 
 wlr-layer-shell-unstable-v1-protocol.o: wlr-layer-shell-unstable-v1-protocol.h
 
-idle-protocol.h:
-	$(WAYLAND_SCANNER) server-header \
-		protocols/idle.xml $@
-
-idle-protocol.c:
-	$(WAYLAND_SCANNER) private-code \
-		protocols/idle.xml $@
-
-idle-protocol.o: idle-protocol.h
-
 dscm-unstable-v1-protocol.h:
 	$(WAYLAND_SCANNER) server-header \
 		protocols/dscm-unstable-v1.xml $@
@@ -66,6 +56,6 @@ dscm-unstable-v1-protocol.c:
 
 dscm-unstable-v1-protocol.o: dscm-unstable-v1-protocol.h
 
-dwl.o: dscm-utils.h dscm-bindings.h dscm-config.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h idle-protocol.h dscm-unstable-v1-protocol.h util.h
+dwl.o: dscm-utils.h dscm-bindings.h dscm-config.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h dscm-unstable-v1-protocol.h util.h
 
-dwl: xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o idle-protocol.o util.o dscm-unstable-v1-protocol.o
+dwl: xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o util.o dscm-unstable-v1-protocol.o
