@@ -2098,11 +2098,11 @@ setfullscreen(Client *c, int fullscreen)
 
 	if (fullscreen) {
 		c->prev = c->geom;
-		resize(c, c->mon->m, 0, 1);
+		resize(c, c->mon->m, 0, c->bw);
 	} else {
 		/* restore previous size instead of arrange for floating windows since
 		 * client positions are set by the user and cannot be recalculated */
-		resize(c, c->prev, 0, 0);
+		resize(c, c->prev, 0, c->bw);
 	}
 	arrange(c->mon);
 	printstatus();
