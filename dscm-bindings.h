@@ -348,10 +348,15 @@ dscm_register()
 
 	scm_c_define("CLICK-METHOD-NONE",
 		     scm_from_int(LIBINPUT_CONFIG_CLICK_METHOD_NONE));
-	scm_c_define("CLICK-METHOD-BUTTON_AREAS",
+	scm_c_define("CLICK-METHOD-BUTTON-AREAS",
 		     scm_from_int(LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS));
 	scm_c_define("CLICK-METHOD-CLICKFINGER",
 		     scm_from_int(LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER));
+
+	scm_c_define("TAP-MAP-LRM",
+		     scm_from_int(LIBINPUT_CONFIG_TAP_MAP_LRM));
+	scm_c_define("TAP-MAP-LMR",
+		     scm_from_int(LIBINPUT_CONFIG_TAP_MAP_LMR));
 
 	scm_c_define("SEND-EVENTS-ENABLED",
 		     scm_from_int(LIBINPUT_CONFIG_SEND_EVENTS_ENABLED));

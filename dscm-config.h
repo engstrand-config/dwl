@@ -52,6 +52,7 @@ static int middle_button_emulation = 0;
 static uint32_t send_events_mode = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
 static enum libinput_config_scroll_method scroll_method = LIBINPUT_CONFIG_SCROLL_2FG;
 static enum libinput_config_click_method click_method = LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS;
+static enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TAP_MAP_LRM;
 
 static inline void
 dscm_parse_color(unsigned int index, SCM value, void *data)
@@ -78,15 +79,14 @@ dscm_parse_layout(unsigned int index, SCM layout, void *data)
 static inline void
 dscm_parse_monitor_rule(unsigned int index, SCM rule, void *data)
 {
-	SCM transform = dscm_alist_get(rule, "transform");
-	SCM eval = scm_primitive_eval(transform);
+	enum wl_output_transform rr = scm_to_int(dscm_alist_get_eval(rule, "transform"));
 	((MonitorRule*)data)[index] = (MonitorRule){
 		.name = dscm_alist_get_string(rule, "name"),
 		.mfact = dscm_alist_get_float(rule, "master-factor"),
 		.nmaster = dscm_alist_get_int(rule, "masters"),
 		.scale = dscm_alist_get_float(rule, "scale"),
 		.lt = &layouts[dscm_alist_get_int(rule, "layout")],
-		.rr = (enum wl_output_transform)scm_to_int(eval),
+		.rr = rr,
 		.x = dscm_alist_get_int(rule, "x"),
 		.y = dscm_alist_get_int(rule, "y"),
 	};
@@ -123,11 +123,11 @@ dscm_parse_key(unsigned int index, SCM key, void *data)
 static inline void
 dscm_parse_button(unsigned int index, SCM button, void *data)
 {
-	SCM symbol = dscm_alist_get(button, "button");
-	SCM eval = scm_primitive_eval(symbol);
+	unsigned int key = scm_to_unsigned_integer(
+		dscm_alist_get_eval(button, "button"), 0, -1);
 	((Button*)data)[index] = (Button){
-		.mod = (unsigned int)dscm_alist_get_modifiers(button, "modifiers"),
-		.button = scm_to_unsigned_integer(eval, 0, -1),
+		.mod = dscm_alist_get_modifiers(button, "modifiers"),
+		.button = key,
 		.func = dscm_alist_get_proc_pointer(button, "action")
 	};
 }
@@ -166,19 +166,19 @@ dscm_config_parse(char *config_file)
 	smartborders = dscm_alist_get_int(config, "smart-borders");
 
 	accel_speed = dscm_alist_get_double(config, "acceleration-speed");
-	accel_profile = dscm_alist_get_int(config, "acceleration-profile");
+	tap_to_click = dscm_alist_get_int(config, "tap-to-click");
+	tap_and_drag = dscm_alist_get_int(config, "tap-and-drag");
+	drag_lock = dscm_alist_get_int(config, "drag-lock");
+	natural_scrolling = dscm_alist_get_int(config, "natural-scrolling");
+	disable_while_typing = dscm_alist_get_int(config, "disable-while-typing");
+	left_handed = dscm_alist_get_int(config, "left-handed");
+	middle_button_emulation = dscm_alist_get_int(config, "middle-button-emulation");
 
-	SCM trackpad = dscm_alist_get(config, "trackpad");
-	tap_to_click = dscm_alist_get_int(trackpad, "tap-to-click");
-	tap_and_drag = dscm_alist_get_int(trackpad, "tap-and-drag");
-	drag_lock = dscm_alist_get_int(trackpad, "drag-lock");
-	natural_scrolling = dscm_alist_get_int(trackpad, "natural-scrolling");
-	disable_while_typing = dscm_alist_get_int(trackpad, "disable-while-typing");
-	left_handed = dscm_alist_get_int(trackpad, "left-handed");
-	middle_button_emulation = dscm_alist_get_int(trackpad, "middle-button-emulation");
-	send_events_mode = dscm_alist_get_int(trackpad, "send-events-mode");
-	scroll_method = dscm_alist_get_int(trackpad, "scroll-method");
-	click_method = dscm_alist_get_int(trackpad, "click-method");
+	accel_profile = scm_to_int(dscm_alist_get_eval(config, "acceleration-profile"));
+	send_events_mode = scm_to_int(dscm_alist_get_eval(config, "send-events-mode"));
+	scroll_method = scm_to_int(dscm_alist_get_eval(config, "scroll-method"));
+	click_method = scm_to_int(dscm_alist_get_eval(config, "click-method"));
+	button_map = scm_to_int(dscm_alist_get_eval(config, "button-map"));
 
 	SCM colors = dscm_alist_get(config, "colors");
 	rootcolor = dscm_iterate_list(dscm_alist_get(colors, "root"),

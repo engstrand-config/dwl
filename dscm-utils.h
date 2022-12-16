@@ -12,6 +12,19 @@ dscm_alist_get(SCM alist, const char* key)
 	return scm_assoc_ref(alist, scm_from_utf8_string(key));
 }
 
+static inline SCM
+dscm_alist_get_eval(SCM alist, const char *key)
+{
+	SCM value = dscm_alist_get(alist, key);
+	if (scm_is_false(value))
+		die("dscm: alist lookup failed for %s, no such key", key);
+	SCM eval = scm_primitive_eval(value);
+	if (scm_is_false(eval))
+		die("dscm: primitive eval failed for %s = %s: #f",
+		    key, scm_to_locale_string(value));
+	return eval;
+}
+
 static inline char*
 dscm_alist_get_string(SCM alist, const char* key)
 {
