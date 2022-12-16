@@ -1,12 +1,12 @@
 include config.mk
 
-CFLAGS += -I. -DWLR_USE_UNSTABLE -std=c99 -Wno-declaration-after-statement -Wno-unused-label
+CFLAGS += -I. -DWLR_USE_UNSTABLE -std=c99 -Wno-declaration-after-statement -Wno-unused-label -Wno-error=implicit-function-declaration $(XWAYLAND)
 
 WAYLAND_PROTOCOLS=$(shell pkg-config --variable=pkgdatadir wayland-protocols)
 WAYLAND_SCANNER=$(shell pkg-config --variable=wayland_scanner wayland-scanner)
 
-PKGS = wlroots wayland-server xcb xkbcommon libinput guile-3.0 pixman-1
-CFLAGS += $(foreach p,$(PKGS),$(shell pkg-config --cflags $(p))) -DWLR_USE_UNSTABLE -Wno-error=implicit-function-declaration
+PKGS = wlroots wayland-server xkbcommon libinput guile-3.0 pixman-1 $(XLIBS)
+CFLAGS += $(foreach p,$(PKGS),$(shell pkg-config --cflags $(p)))
 LDLIBS += $(foreach p,$(PKGS),$(shell pkg-config --libs $(p)))
 
 all: dwl

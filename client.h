@@ -24,12 +24,12 @@ client_from_wlr_surface(struct wlr_surface *s)
 #ifdef XWAYLAND
 	struct wlr_xwayland_surface *xsurface;
 	if (s && wlr_surface_is_xwayland_surface(s)
-	    && (xsurface = wlr_xwayland_surface_from_wlr_surface(s)))
+			&& (xsurface = wlr_xwayland_surface_from_wlr_surface(s)))
 		return xsurface->data;
 #endif
 	if (s && wlr_surface_is_xdg_surface(s)
-	    && (surface = wlr_xdg_surface_from_wlr_surface(s))
-	    && surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
+			&& (surface = wlr_xdg_surface_from_wlr_surface(s))
+			&& surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
 		return surface->data;
 
 	if (s && wlr_surface_is_subsurface(s))
@@ -93,14 +93,14 @@ client_activate_surface(struct wlr_surface *s, int activated)
 #ifdef XWAYLAND
 	struct wlr_xwayland_surface *xsurface;
 	if (wlr_surface_is_xwayland_surface(s)
-	    && (xsurface = wlr_xwayland_surface_from_wlr_surface(s))) {
+			&& (xsurface = wlr_xwayland_surface_from_wlr_surface(s))) {
 		wlr_xwayland_surface_activate(xsurface, activated);
 		return;
 	}
 #endif
 	if (wlr_surface_is_xdg_surface(s)
-	    && (surface = wlr_xdg_surface_from_wlr_surface(s))
-	    && surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
+			&& (surface = wlr_xdg_surface_from_wlr_surface(s))
+			&& surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
 		wlr_xdg_toplevel_set_activated(surface->toplevel, activated);
 }
 
@@ -112,7 +112,7 @@ client_set_bounds(Client *c, int32_t width, int32_t height)
 		return 0;
 #endif
 	if (c->surface.xdg->client->shell->version >=
-	    XDG_TOPLEVEL_CONFIGURE_BOUNDS_SINCE_VERSION)
+			XDG_TOPLEVEL_CONFIGURE_BOUNDS_SINCE_VERSION)
 		return wlr_xdg_toplevel_set_bounds(c->surface.xdg->toplevel, width, height);
 	return 0;
 }
@@ -177,9 +177,9 @@ client_is_float_type(Client *c)
 
 		for (size_t i = 0; i < surface->window_type_len; i++)
 			if (surface->window_type[i] == netatom[NetWMWindowTypeDialog]
-			    || surface->window_type[i] == netatom[NetWMWindowTypeSplash]
-			    || surface->window_type[i] == netatom[NetWMWindowTypeToolbar]
-			    || surface->window_type[i] == netatom[NetWMWindowTypeUtility])
+					|| surface->window_type[i] == netatom[NetWMWindowTypeSplash]
+					|| surface->window_type[i] == netatom[NetWMWindowTypeToolbar]
+					|| surface->window_type[i] == netatom[NetWMWindowTypeUtility])
 				return 1;
 	}
 #endif
@@ -211,7 +211,7 @@ client_notify_enter(struct wlr_surface *s, struct wlr_keyboard *kb)
 {
 	if (kb)
 		wlr_seat_keyboard_notify_enter(seat, s, kb->keycodes,
-					       kb->num_keycodes, &kb->modifiers);
+				kb->num_keycodes, &kb->modifiers);
 	else
 		wlr_seat_keyboard_notify_enter(seat, s, NULL, 0, NULL);
 }
@@ -222,7 +222,7 @@ client_restack_surface(Client *c)
 #ifdef XWAYLAND
 	if (client_is_x11(c))
 		wlr_xwayland_surface_restack(c->surface.xwayland, NULL,
-					     XCB_STACK_MODE_ABOVE);
+				XCB_STACK_MODE_ABOVE);
 #endif
 	return;
 }
@@ -257,7 +257,7 @@ client_set_size(Client *c, uint32_t width, uint32_t height)
 #ifdef XWAYLAND
 	if (client_is_x11(c)) {
 		wlr_xwayland_surface_configure(c->surface.xwayland,
-					       c->geom.x, c->geom.y, width, height);
+				c->geom.x, c->geom.y, width, height);
 		return 0;
 	}
 #endif
@@ -280,50 +280,9 @@ client_surface_at(Client *c, double cx, double cy, double *sx, double *sy)
 #ifdef XWAYLAND
 	if (client_is_x11(c))
 		return wlr_surface_surface_at(c->surface.xwayland->surface,
-					      cx, cy, sx, sy);
+				cx, cy, sx, sy);
 #endif
 	return wlr_xdg_surface_surface_at(c->surface.xdg, cx, cy, sx, sy);
-}
-
-static inline void
-client_min_size(Client *c, int *width, int *height)
-{
-	struct wlr_xdg_toplevel *toplevel;
-	struct wlr_xdg_toplevel_state *state;
-#ifdef XWAYLAND
-	if (client_is_x11(c)) {
-		struct wlr_xwayland_surface_size_hints *size_hints;
-		size_hints = c->surface.xwayland->size_hints;
-		*width = size_hints->min_width;
-		*height = size_hints->min_height;
-		return;
-	}
-#endif
-	toplevel = c->surface.xdg->toplevel;
-	state = &toplevel->current;
-	*width = state->min_width;
-	*height = state->min_height;
-}
-
-static inline Client *
-client_from_popup(struct wlr_xdg_popup *popup)
-{
-	struct wlr_xdg_surface *surface = popup->base;
-
-	while (1) {
-		switch (surface->role) {
-		case WLR_XDG_SURFACE_ROLE_POPUP:
-			if (!wlr_surface_is_xdg_surface(surface->popup->parent))
-				return NULL;
-
-			surface = wlr_xdg_surface_from_wlr_surface(surface->popup->parent);
-			break;
-		case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
-			return surface->data;
-		case WLR_XDG_SURFACE_ROLE_NONE:
-			return NULL;
-		}
-	}
 }
 
 static inline int
@@ -365,7 +324,7 @@ toplevel_from_popup(struct wlr_xdg_popup *popup)
 			surface = wlr_xdg_surface_from_wlr_surface(surface->popup->parent);
 			break;
 		case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
-			return surface->data;
+				return surface->data;
 		case WLR_XDG_SURFACE_ROLE_NONE:
 			return NULL;
 		}
@@ -381,7 +340,7 @@ toplevel_from_wlr_layer_surface(struct wlr_surface *s)
 	if ((c = client_from_wlr_surface(s)))
 		return c;
 	else if (s && wlr_surface_is_layer_surface(s)
-		 && (wlr_layer_surface = wlr_layer_surface_v1_from_wlr_surface(s)))
+			&& (wlr_layer_surface = wlr_layer_surface_v1_from_wlr_surface(s)))
 		return wlr_layer_surface->data;
 
 	return NULL;

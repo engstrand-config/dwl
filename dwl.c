@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <linux/wait.h>
 #include <time.h>
 #include <unistd.h>
 #include <wayland-server-core.h>

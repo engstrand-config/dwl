@@ -128,6 +128,7 @@
   (inherit dwl)
   (source source)
   (name "dwl-guile-devel")
+  (version "2.0.0")
   (inputs
    (modify-inputs (package-inputs dwl)
                   (prepend guile-3.0)
