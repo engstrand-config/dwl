@@ -234,7 +234,7 @@ static void dscm_destroymon(struct wl_resource *resource);
 static void dscm_printstatusmon(Monitor *m, const DscmMonitor *mon);
 static void dscm_printstatus(Monitor *m);
 static void dscm_settags(struct wl_client *client, struct wl_resource *resource,
-			 uint32_t t, uint32_t toggle_tagset);
+			 uint32_t t, uint32_t toggletagset);
 static void dscm_setlayout(struct wl_client *client, struct wl_resource *resource,
 			   uint32_t layout);
 static void dscm_setclient(struct wl_client *client, struct wl_resource *resource,
@@ -242,6 +242,8 @@ static void dscm_setclient(struct wl_client *client, struct wl_resource *resourc
 static void dscm_release(struct wl_client *client, struct wl_resource *resource);
 static void dscm_getmon(struct wl_client *client, struct wl_resource *resource,
 			uint32_t id, struct wl_resource *output);
+static void dscm_eval(struct wl_client *client, struct wl_resource *resource,
+		      const char *exp);
 static void dscm_destroy(struct wl_resource *resource);
 static void dscm_bind(struct wl_client *client, void *data, uint32_t version,
 		      uint32_t id);
@@ -310,6 +312,7 @@ static void pointerfocus(Client *c, struct wlr_surface *surface,
 static void printstatus(void);
 static void quit(const Arg *arg);
 static void quitsignal(int signo);
+static void reloadconfig();
 static void rendermon(struct wl_listener *listener, void *data);
 static void requeststartdrag(struct wl_listener *listener, void *data);
 static void resize(Client *c, struct wlr_box geo, int interact, int draw_borders);
@@ -321,7 +324,7 @@ static void setfullscreen(Client *c, int fullscreen);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
 static void setmon(Client *c, Monitor *m, unsigned int newtags);
-static void setup(char* config_file);
+static void setup();
 static void sigchld(int unused);
 static void setpsel(struct wl_listener *listener, void *data);
 static void setsel(struct wl_listener *listener, void *data);
@@ -358,14 +361,12 @@ static void incrivgaps(const Arg *arg);
 static void togglegaps(const Arg *arg);
 static void defaultgaps(const Arg *arg);
 
-/* signal actions */
-static int reloadconfig(int signal, void *data);
-
 /* variables */
 static const char broken[] = "broken";
 static const char *cursor_image = "left_ptr";
 static pid_t child_pid = -1;
 static void *exclusive_focus;
+static char *config_file = NULL;
 static struct wl_display *dpy;
 static struct wlr_backend *backend;
 static struct wlr_scene *scene;
@@ -438,6 +439,7 @@ static struct dscm_monitor_v1_interface dscm_monitor_implementation = {
 static struct dscm_v1_interface dscm_implementation = {
 	.release = dscm_release,
 	.get_monitor = dscm_getmon,
+	.eval = dscm_eval,
 };
 
 #ifdef XWAYLAND
@@ -458,6 +460,7 @@ static Atom netatom[NetLast];
 #include "client.h"
 
 /* include guile config and bindings */
+#include "dscm-ipc.h"
 #include "dscm-utils.h"
 #include "dscm-config.h"
 #include "dscm-bindings.h"
@@ -1821,6 +1824,27 @@ quitsignal(int signo)
 }
 
 void
+reloadconfig() {
+	Client *c;
+	Monitor *m;
+	dscm_config_parse(config_file);
+
+	/* Redraw clients */
+	wl_list_for_each(c, &clients, link) {
+		if (c->bw > 0)
+			c->bw = borderpx;
+		resize(c, c->geom, 0, c->bw);
+	}
+
+	/* Rearrange clients on all monitors */
+	wl_list_for_each(m, &mons, link)
+		arrange(m);
+
+	/* Send events to observing clients, notifying of possible changes */
+	dscm_sendevents();
+}
+
+void
 rendermon(struct wl_listener *listener, void *data)
 {
 	/* This function is called every time an output is ready to display a frame,
@@ -1852,16 +1876,6 @@ requeststartdrag(struct wl_listener *listener, void *data)
 		wlr_seat_start_pointer_drag(seat, event->drag, event->serial);
 	else
 		wlr_data_source_destroy(event->drag->source);
-}
-
-void
-setupsignals() {
-	/* Block real-time signals so that they can be
-	 * used as custom user signals. */
-	struct sigaction sa;
-	sa.sa_handler = SIG_IGN;
-	for (int i = SIGRTMIN; i <= SIGRTMAX; i++)
-		sigaction(i, &sa, NULL);
 }
 
 void
@@ -2194,33 +2208,8 @@ setsel(struct wl_listener *listener, void *data)
 	wlr_seat_set_selection(seat, event->source, event->serial);
 }
 
-int
-reloadconfig(int signal, void *data) {
-	Client *c;
-	Monitor *m;
-	char *config_file = (char*)data;
-
-	dscm_config_parse(config_file);
-
-	/* Redraw clients */
-	wl_list_for_each(c, &clients, link) {
-		if (c->bw > 0)
-			c->bw = borderpx;
-		resize(c, c->geom, 0, c->bw);
-	}
-
-	/* Rearrange clients on all monitors */
-	wl_list_for_each(m, &mons, link)
-		arrange(m);
-
-	/* Send events to observing clients, notifying of possible changes */
-	dscm_sendevents();
-
-	return 0;
-}
-
 void
-setup(char *config_file)
+setup()
 {
 	/* Force line-buffered stdout */
 	setvbuf(stdout, NULL, _IOLBF, 0);
@@ -2237,7 +2226,6 @@ setup(char *config_file)
 #endif
 	signal(SIGINT, quitsignal);
 	signal(SIGTERM, quitsignal);
-	setupsignals();
 
 	/* The backend is a wlroots feature which abstracts the underlying input and
 	 * output hardware. The autocreate option will choose the most suitable
@@ -2393,11 +2381,6 @@ setup(char *config_file)
 	wl_signal_add(&output_mgr->events.test, &output_mgr_test);
 
 	wlr_scene_set_presentation(scene, wlr_presentation_create(dpy, backend));
-	struct wl_event_loop *loop = wl_display_get_event_loop(dpy);
-
-	/* Add handlers for user signals */
-	/* TODO: Add config option for adding custom handlers to signal. */
-	wl_event_loop_add_signal(loop, SIGRTMIN, &reloadconfig, config_file);
 	wl_global_create(dpy, &dscm_v1_interface, 1, NULL, dscm_bind);
 #ifdef XWAYLAND
 	/*
@@ -2997,9 +2980,8 @@ dscm_printstatus(Monitor *m)
 		dscm_printstatusmon(m, mon);
 }
 
-void
-dscm_settags(struct wl_client *client, struct wl_resource *resource,
-	     uint32_t t, uint32_t toggletagset)
+void dscm_settags(struct wl_client *client, struct wl_resource *resource,
+		  uint32_t t, uint32_t toggletagset)
 {
 	DscmMonitor *mon;
 	Monitor *m;
@@ -3091,6 +3073,12 @@ dscm_getmon(struct wl_client *client, struct wl_resource *resource,
 }
 
 void
+dscm_eval(struct wl_client *client, struct wl_resource *resource, const char *exp)
+{
+	scm_c_eval_string(exp);
+}
+
+void
 dscm_destroy(struct wl_resource *resource)
 {
 	DscmClient *c = wl_resource_get_user_data(resource);
@@ -3123,13 +3111,15 @@ int
 main(int argc, char *argv[])
 {
 	int c;
-	char *startup_cmd = NULL, *config_file = NULL, *runtimedir = NULL;
+	char *startup_cmd = NULL, *runtimedir = NULL, *exp = NULL;
 
-	while ((c = getopt(argc, argv, "s:c:h:v")) != -1) {
+	while ((c = getopt(argc, argv, "s:c:e:h:v")) != -1) {
 		if (c == 's')
 			startup_cmd = optarg;
 		else if (c == 'c')
 			config_file = optarg;
+		else if (c == 'e')
+			return dscm_ipc_evaluate(optarg);
 		else if (c == 'v')
 			die("dwl v2.0.0");
 		else
@@ -3146,13 +3136,13 @@ main(int argc, char *argv[])
 		die("error: config path must be set using '-c'");
 	scm_init_guile();
 	dscm_register();
-	dscm_config_parse(config_file);
-	setup(config_file);
+	dscm_config_parse();
+	setup();
 	writepid(runtimedir);
 	run(startup_cmd);
 	dscm_config_cleanup();
 	cleanup();
 	return EXIT_SUCCESS;
 usage:
-	die("Usage: %s [-c path to config.scm] [-s startup command]", argv[0]);
+	die("Usage: %s [-c path to config.scm] [-s startup command] [-e expression to evaluate]", argv[0]);
 }

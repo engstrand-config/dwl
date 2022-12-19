@@ -299,6 +299,13 @@ dscm_binding_defaultgaps()
 	return SCM_BOOL_T;
 }
 
+static inline SCM
+dscm_binding_reloadconfig()
+{
+	reloadconfig();
+	return SCM_BOOL_T;
+}
+
 static inline void
 dscm_register()
 {
@@ -370,6 +377,7 @@ dscm_register()
 	scm_c_define("ACCEL-PROFILE-ADAPTIVE",
 		     scm_from_int(LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE));
 
+	/* dwl bindings */
 	scm_c_define_gsubr("dwl:chvt", 1, 0, 0, &dscm_binding_chvt);
 	scm_c_define_gsubr("dwl:quit", 0, 0, 0, &dscm_binding_quit);
 	scm_c_define_gsubr("dwl:killclient", 0, 0, 0, &dscm_binding_killclient);
@@ -405,4 +413,7 @@ dscm_register()
 	scm_c_define_gsubr("dwl:gaps-inner-vertical", 1, 0, 0, &dscm_binding_incrivgaps);
 	scm_c_define_gsubr("dwl:gaps-outer-horizontal", 1, 0, 0, &dscm_binding_incrohgaps);
 	scm_c_define_gsubr("dwl:gaps-outer-vertical", 1, 0, 0, &dscm_binding_incrovgaps);
+
+	/* dwl-guile specific bindings */
+	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_binding_reloadconfig);
 }

@@ -56,6 +56,15 @@
             <arg name="output" type="object" interface="wl_output" />
         </request>
 
+        <request name="eval">
+            <description summary="evaluate scheme expression">
+              Evaluate custom Scheme/Guile expression(s) in the dwl-guile
+              context. All dwl-guile bindings will be available during
+              the evaluation, including configuration options.
+            </description>
+            <arg name="exp" type="string" summary="scheme expression to evaluate" />
+        </request>
+
         <event name="tag">
             <description summary="announces the presence of a tag">
                 This event is sent immediately after binding.

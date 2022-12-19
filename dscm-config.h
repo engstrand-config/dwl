@@ -148,7 +148,7 @@ dscm_parse_xkb_rules(SCM config)
 }
 
 static inline void
-dscm_config_parse(char *config_file)
+dscm_config_parse()
 {
 	scm_c_primitive_load(config_file);
 	config = dscm_get_variable("config");

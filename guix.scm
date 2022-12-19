@@ -131,7 +131,8 @@
   (version "2.0.0")
   (inputs
    (modify-inputs (package-inputs dwl)
-                  (prepend guile-3.0)
+                  (prepend guile-3.0
+                           wayland-1.21.0)
                   (replace "wlroots" wlroots-0.16.0)))
   (arguments
     (substitute-keyword-arguments
