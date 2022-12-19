@@ -2313,6 +2313,7 @@ setup(char *config_file)
 	 */
 	wl_list_init(&clients);
 	wl_list_init(&fstack);
+	wl_list_init(&dscm_clients);
 
 	idle = wlr_idle_create(dpy);
 	idle_notifier = wlr_idle_notifier_v1_create(dpy);
