@@ -753,6 +753,7 @@ cleanupkeyboard(struct wl_listener *listener, void *data)
 void
 cleanupmon(struct wl_listener *listener, void *data)
 {
+	DscmMonitor *mon, *montmp;
 	Monitor *m = wl_container_of(listener, m, destroy);
 	LayerSurface *l, *tmp;
 	int i;
@@ -768,6 +769,11 @@ cleanupmon(struct wl_listener *listener, void *data)
 	wlr_output_layout_remove(output_layout, m->wlr_output);
 	wlr_scene_output_destroy(m->scene_output);
 	wlr_scene_node_destroy(&m->fullscreen_bg->node);
+
+	wl_list_for_each_safe(mon, montmp, &m->dscm, link) {
+		wl_resource_set_user_data(mon->resource, NULL);
+		free(mon);
+	}
 
 	closemon(m);
 	free(m);
