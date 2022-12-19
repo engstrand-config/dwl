@@ -20,7 +20,6 @@ static int smartborders              = 0;
 static float *rootcolor              = NULL;
 static float *bordercolor            = NULL;
 static float *focuscolor             = NULL;
-static float *textcolor              = NULL;
 static float *fullscreen_bg          = NULL;
 static char **tags                   = NULL;
 static char **termcmd                = NULL;
@@ -187,8 +186,6 @@ dscm_config_parse()
 					sizeof(float), 0, &dscm_parse_color, NULL);
 	focuscolor = dscm_iterate_list(dscm_alist_get(colors, "focus"),
 				       sizeof(float), 0, &dscm_parse_color, NULL);
-	textcolor = dscm_iterate_list(dscm_alist_get(colors, "text"),
-				      sizeof(float), 0, &dscm_parse_color, NULL);
 	fullscreen_bg = dscm_iterate_list(dscm_alist_get(colors, "fullscreen"),
 					  sizeof(float), 0, &dscm_parse_color, NULL);
 	tags = dscm_iterate_list(dscm_alist_get(config, "tags"),
@@ -234,7 +231,6 @@ dscm_config_cleanup()
 	free(rootcolor);
 	free(bordercolor);
 	free(focuscolor);
-	free(textcolor);
 	free(fullscreen_bg);
 	free((char*)xkb_rules->rules);
 	free((char*)xkb_rules->model);
