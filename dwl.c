@@ -1841,8 +1841,10 @@ reloadconfig() {
 	}
 
 	/* Rearrange clients on all monitors */
-	wl_list_for_each(m, &mons, link)
+	wl_list_for_each(m, &mons, link) {
+		defaultgaps(NULL);
 		arrange(m);
+	}
 
 	/* Send events to observing clients, notifying of possible changes */
 	dscm_sendevents();
