@@ -1827,13 +1827,17 @@ void
 reloadconfig() {
 	Client *c;
 	Monitor *m;
+	float *color;
 	dscm_config_parse(config_file);
 
 	/* Redraw clients */
 	wl_list_for_each(c, &clients, link) {
 		if (c->bw > 0)
 			c->bw = borderpx;
+		color = focustop(selmon) == c ? focuscolor : bordercolor;
 		resize(c, c->geom, 0, c->bw);
+		for (int i = 0; i < 4; i++)
+			wlr_scene_rect_set_color(c->border[i], color);
 	}
 
 	/* Rearrange clients on all monitors */
