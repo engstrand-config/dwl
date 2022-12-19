@@ -2,7 +2,7 @@
 <protocol name="dscm_unstable_v1">
     <copyright>
         Copyright (c) 2021 Raphael Robatsch
-        Copyright (c) 2021 Fredrik Engstrand
+        Copyright (c) 2022 Fredrik Engstrand
 
         Permission is hereby granted, free of charge, to any person obtaining a
         copy of this software and associated documentation files (the
@@ -70,18 +70,6 @@
                 A roundtrip after binding guarantees that the client has received all layouts.
             </description>
             <arg name="name" type="string"/>
-        </event>
-
-        <event name="colorscheme">
-            <description summary="announces the current colorscheme">
-                This event is sent immediately after binding and will be resent
-                everytime the colorscheme changes. A roundtrip after binding
-                guarantees that the client has received the colorscheme.
-            </description>
-            <arg name="root" type="string" />
-            <arg name="border" type="string" />
-            <arg name="focus" type="string" />
-            <arg name="text" type="string" />
         </event>
     </interface>
 

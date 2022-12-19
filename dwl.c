@@ -232,8 +232,6 @@ typedef struct {
 
 /* dscm protocol */
 static void dscm_sendevents(void);
-static void dscm_sendeventsclient(DscmClient *c);
-static void dscm_rgbatostr(char *buf, float *color);
 static void dscm_closemon(struct wl_client *client, struct wl_resource *resource);
 static void dscm_destroymon(struct wl_resource *resource);
 static void dscm_printstatusmon(Monitor *m, const DscmMonitor *mon);
@@ -2934,43 +2932,15 @@ xwaylandready(struct wl_listener *listener, void *data)
 #endif
 
 void
-dscm_sendeventsclient(DscmClient *c)
-{
-	char root[HEXLENGTH], border[HEXLENGTH],
-		focus[HEXLENGTH], text[HEXLENGTH];
-
-	for (int i = 0; i < numtags; i++)
-		dscm_v1_send_tag(c->resource, tags[i]);
-	for (int i = 0; i < numlayouts; i++)
-		dscm_v1_send_layout(c->resource, layouts[i].symbol);
-
-	dscm_rgbatostr(root, rootcolor);
-	dscm_rgbatostr(border, bordercolor);
-	dscm_rgbatostr(focus, focuscolor);
-	dscm_rgbatostr(text, textcolor);
-	dscm_v1_send_colorscheme(c->resource, root, border, focus, text);
-}
-
-void
 dscm_sendevents(void)
 {
 	DscmClient *c;
-	wl_list_for_each(c, &dscm_clients, link)
-		dscm_sendeventsclient(c);
-}
-
-void
-dscm_rgbatostr(char *buf, float *color)
-{
-	if (!color)
-		return;
-
-	unsigned int r, g, b, a;
-	r = MAX(0, MIN(255, (int)ROUND(color[0] * 256.0)));
-	g = MAX(0, MIN(255, (int)ROUND(color[1] * 256.0)));
-	b = MAX(0, MIN(255, (int)ROUND(color[2] * 256.0)));
-	a = MAX(0, MIN(255, (int)ROUND(color[3] * 256.0)));
-	snprintf(buf, HEXLENGTH, "%02X%02X%02X%02X", r, g, b, a);
+	wl_list_for_each(c, &dscm_clients, link) {
+	    for (int i = 0; i < numtags; i++)
+		    dscm_v1_send_tag(c->resource, tags[i]);
+	    for (int i = 0; i < numlayouts; i++)
+		    dscm_v1_send_layout(c->resource, layouts[i].symbol);
+	}
 }
 
 void
