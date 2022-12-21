@@ -37,8 +37,11 @@ dscm_binding_spawn(SCM args)
 static inline SCM
 dscm_binding_shcmd(SCM args)
 {
+	SCM sh_args = scm_string_join(args, scm_from_utf8_string(" "),
+				      scm_string_to_symbol(scm_from_utf8_string("infix")));
 	SCM extended = scm_list_3(scm_from_utf8_string("/bin/sh"),
-				  scm_from_utf8_string("-c"), args);
+				  scm_from_utf8_string("-c"),
+				  sh_args);
 	return dscm_binding_spawn(extended);
 }
 
@@ -400,7 +403,7 @@ dscm_register()
 	scm_c_define_gsubr("dwl:tag-monitor", 1, 0, 0, &dscm_binding_tagmon);
 	scm_c_define_gsubr("dwl:move-resize", 1, 0, 0, &dscm_binding_moveresize);
 	scm_c_define_gsubr("dwl:set-masters", 1, 0, 0, &dscm_binding_incnmaster);
-	scm_c_define_gsubr("dwl:shcmd", 1, 0, 0, &dscm_binding_shcmd);
+	scm_c_define_gsubr("dwl:shcmd", 0, 0, 1, &dscm_binding_shcmd);
 	scm_c_define_gsubr("dwl:change-alpha", 1, 0, 0, &dscm_binding_changealpha);
 	scm_c_define_gsubr("dwl:spawn-menu", 0, 0, 0, &dscm_binding_spawn_menu);
 	scm_c_define_gsubr("dwl:spawn-terminal", 0, 0, 0, &dscm_binding_spawn_terminal);
