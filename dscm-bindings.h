@@ -212,9 +212,17 @@ dscm_binding_toggletag(SCM value)
 }
 
 static inline SCM
-dscm_binding_moveresize(SCM cursor)
+dscm_binding_move()
 {
-	Arg a = {.ui = scm_to_unsigned_integer(cursor, 0, CurResize)};
+	Arg a = {.ui = CurMove};
+	moveresize(&a);
+	return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_resize()
+{
+	Arg a = {.ui = CurResize};
 	moveresize(&a);
 	return SCM_BOOL_T;
 }
@@ -326,9 +334,6 @@ dscm_register()
 	scm_c_define("MOUSE-LEFT", scm_from_int(BTN_LEFT));
 	scm_c_define("MOUSE-MIDDLE", scm_from_int(BTN_MIDDLE));
 	scm_c_define("MOUSE-RIGHT", scm_from_int(BTN_RIGHT));
-	scm_c_define("CURSOR-NORMAL", scm_from_int(CurNormal));
-	scm_c_define("CURSOR-MOVE", scm_from_int(CurMove));
-	scm_c_define("CURSOR-RESIZE", scm_from_int(CurResize));
 	scm_c_define("TRANSFORM-NORMAL",
 		     scm_from_int(WL_OUTPUT_TRANSFORM_NORMAL));
 	scm_c_define("TRANSFORM-ROTATE-90",
@@ -401,7 +406,8 @@ dscm_register()
 	scm_c_define_gsubr("dwl:toggle-floating", 0, 0, 0, &dscm_binding_togglefloating);
 	scm_c_define_gsubr("dwl:focus-monitor", 1, 0, 0, &dscm_binding_focusmon);
 	scm_c_define_gsubr("dwl:tag-monitor", 1, 0, 0, &dscm_binding_tagmon);
-	scm_c_define_gsubr("dwl:move-resize", 1, 0, 0, &dscm_binding_moveresize);
+	scm_c_define_gsubr("dwl:move", 0, 0, 0, &dscm_binding_move);
+	scm_c_define_gsubr("dwl:resize", 0, 0, 0, &dscm_binding_resize);
 	scm_c_define_gsubr("dwl:set-masters", 1, 0, 0, &dscm_binding_incnmaster);
 	scm_c_define_gsubr("dwl:shcmd", 0, 0, 1, &dscm_binding_shcmd);
 	scm_c_define_gsubr("dwl:change-alpha", 1, 0, 0, &dscm_binding_changealpha);
