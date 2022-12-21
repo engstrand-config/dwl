@@ -4,6 +4,7 @@ enum { DSCM_CALL_ARRANGE, DSCM_CALL_ACTION, DSCM_CALL_EVAL };
 typedef struct {
 	SCM proc;
 	void *args;
+	unsigned int type;
 } dscm_call_data_t;
 
 static inline SCM
@@ -154,28 +155,35 @@ dscm_modify_list(SCM list, void *target, void (*iterator)(unsigned int, SCM, voi
 static inline SCM
 dscm_call_eval(void *data)
 {
-	dscm_call_data_t *call_data = data;
-	SCM result = scm_c_eval_string(call_data->args);
-	free(call_data->args);
-	free(call_data);
-	return result;
-}
-
-static inline SCM
-dscm_call_action(void *data)
-{
-	dscm_call_data_t *call_data = data;
-	SCM result = scm_call_0(call_data->proc);
-	free(call_data);
-	return result;
+	return scm_c_eval_string(((dscm_call_data_t*)data)->args);
 }
 
 static inline SCM
 dscm_call_thread_handler(void *data, SCM key, SCM args)
 {
-	if (!scm_is_symbol(key))
-		return SCM_BOOL_T;
+	dscm_call_data_t *call_data = data;
+	/* Check if an exception was thrown */
+	if (scm_is_symbol(key)) {
+		char *exp = call_data->args ? call_data->args : "unknown";
+		fprintf(stderr, "dscm: error in eval of %s\n=> ", exp);
+		scm_display_error(
+			SCM_BOOL_F,
+			scm_current_error_port(),
+			scm_car(args),
+			scm_cadr(args),
+			scm_caddr(args),
+			scm_cadddr(args));
+	}
+
+	free(call_data->args);
+	free(call_data);
 	return SCM_BOOL_F;
+}
+
+static inline void*
+dscm_call_action(void *data)
+{
+	return scm_call_0(((dscm_call_data_t*)data)->proc);
 }
 
 static inline void*
@@ -195,16 +203,19 @@ dscm_safe_call(unsigned int type, scm_t_bits *proc_ptr, void *data)
 	dscm_call_data_t *proc_data = ecalloc(1, sizeof(dscm_call_data_t));
 	proc_data->proc = proc;
 	proc_data->args = data;
+	proc_data->type = type;
 	switch (type) {
 	case DSCM_CALL_ARRANGE:
 		scm_c_with_continuation_barrier(&dscm_call_arrange, proc_data);
 		free(proc_data);
 		break;
-	case DSCM_CALL_EVAL:
-		scm_spawn_thread(dscm_call_eval, proc_data, dscm_call_thread_handler, NULL);
-		break;
 	case DSCM_CALL_ACTION:
+		scm_c_with_continuation_barrier(&dscm_call_action, proc_data);
+		free(proc_data);
+		break;
+	case DSCM_CALL_EVAL:
 	default:
-		scm_spawn_thread(dscm_call_action, proc_data, dscm_call_thread_handler, NULL);
+		scm_spawn_thread(dscm_call_eval, proc_data,
+				 dscm_call_thread_handler, proc_data);
 	}
 }
