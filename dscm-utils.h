@@ -1,6 +1,6 @@
 #pragma once
 
-enum { DSCM_CALL_ARRANGE, DSCM_CALL_ACTION };
+enum { DSCM_CALL_ARRANGE, DSCM_CALL_ACTION, DSCM_CALL_EVAL };
 typedef struct {
 	SCM proc;
 	void *args;
@@ -151,10 +151,31 @@ dscm_modify_list(SCM list, void *target, void (*iterator)(unsigned int, SCM, voi
 	}
 }
 
-static inline void*
+static inline SCM
+dscm_call_eval(void *data)
+{
+	dscm_call_data_t *call_data = data;
+	SCM result = scm_c_eval_string(call_data->args);
+	free(call_data->args);
+	free(call_data);
+	return result;
+}
+
+static inline SCM
 dscm_call_action(void *data)
 {
-	return scm_call_0(((dscm_call_data_t*)data)->proc);
+	dscm_call_data_t *call_data = data;
+	SCM result = scm_call_0(call_data->proc);
+	free(call_data);
+	return result;
+}
+
+static inline SCM
+dscm_call_thread_handler(void *data, SCM key, SCM args)
+{
+	if (!scm_is_symbol(key))
+		return SCM_BOOL_T;
+	return SCM_BOOL_F;
 }
 
 static inline void*
@@ -168,20 +189,22 @@ dscm_call_arrange(void *data)
 static inline void
 dscm_safe_call(unsigned int type, scm_t_bits *proc_ptr, void *data)
 {
-	if (proc_ptr == NULL) {
-		fprintf(stderr, "dscm: could not call proc that is NULL");
-		return;
-	}
+	if (proc_ptr == NULL && type != DSCM_CALL_EVAL)
+		die("dscm: could not call proc that is NULL");
 	SCM proc = SCM_PACK_POINTER(proc_ptr);
-	dscm_call_data_t proc_data = {.proc = proc, .args = data};
-	void *(*func)(void*) = NULL;
+	dscm_call_data_t *proc_data = ecalloc(1, sizeof(dscm_call_data_t));
+	proc_data->proc = proc;
+	proc_data->args = data;
 	switch (type) {
 	case DSCM_CALL_ARRANGE:
-		func = &dscm_call_arrange;
+		scm_c_with_continuation_barrier(&dscm_call_arrange, proc_data);
+		free(proc_data);
+		break;
+	case DSCM_CALL_EVAL:
+		scm_spawn_thread(dscm_call_eval, proc_data, dscm_call_thread_handler, NULL);
 		break;
 	case DSCM_CALL_ACTION:
 	default:
-		func = &dscm_call_action;
+		scm_spawn_thread(dscm_call_action, proc_data, dscm_call_thread_handler, NULL);
 	}
-	scm_c_with_continuation_barrier(func, &proc_data);
 }

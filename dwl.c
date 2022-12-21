@@ -3081,7 +3081,11 @@ dscm_getmon(struct wl_client *client, struct wl_resource *resource,
 void
 dscm_eval(struct wl_client *client, struct wl_resource *resource, const char *exp)
 {
-	scm_c_eval_string(exp);
+	size_t len = strlen(exp);
+	/* Free'd automatically once the call handler has executed. */
+	char* expcpy = ecalloc(len, sizeof(char));
+	strncpy(expcpy, exp, len);
+	dscm_safe_call(DSCM_CALL_EVAL, NULL, (void*)expcpy);
 }
 
 void
