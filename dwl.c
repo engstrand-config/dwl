@@ -538,7 +538,7 @@ arrange(Monitor *m)
 				   (c = focustop(m)) && c->isfullscreen);
 
 	if (m && m->lt[m->sellt]->arrange)
-		dscm_safe_call(DSCM_CALL_ARRANGE, m->lt[m->sellt]->arrange, m);
+		dscm_safe_call(DSCM_CALL_ARRANGE, m->lt[m->sellt]->arrange, m, NULL);
 	motionnotify(0);
 }
 
@@ -645,7 +645,7 @@ buttonpress(struct wl_listener *listener, void *data)
 			b = buttons[i];
 			if (CLEANMASK(mods) == CLEANMASK(b.mod) &&
 			    event->button == b.button && b.func) {
-				dscm_safe_call(DSCM_CALL_ACTION, b.func, NULL);
+				dscm_safe_call(DSCM_CALL_ACTION, b.func, NULL, NULL);
 				return;
 			}
 		}
@@ -1394,7 +1394,7 @@ keybinding(uint32_t mods, xkb_keycode_t keycode)
 		k = keys[i];
 		if (CLEANMASK(mods) == CLEANMASK(k.mod) &&
 		    keycode == k.keycode && k.func) {
-			dscm_safe_call(DSCM_CALL_ACTION, k.func, NULL);
+			dscm_safe_call(DSCM_CALL_ACTION, k.func, NULL, NULL);
 			handled = 1;
 		}
 	}
@@ -3085,7 +3085,7 @@ dscm_eval(struct wl_client *client, struct wl_resource *resource, const char *ex
 	/* Free'd automatically once the call handler has executed. */
 	char* expcpy = ecalloc(len, sizeof(char));
 	strncpy(expcpy, exp, len);
-	dscm_safe_call(DSCM_CALL_EVAL, NULL, (void*)expcpy);
+	dscm_safe_call(DSCM_CALL_EVAL, NULL, (void*)expcpy, NULL);
 }
 
 void
