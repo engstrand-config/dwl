@@ -39,6 +39,11 @@
             dscm_monitor_v1.layout/tag events.
         </description>
 
+        <enum name="eval_status">
+            <entry name="success" value="0" summary="evaluation succeeded"/>
+            <entry name="error" value="1" summary="evauluation failed"/>
+        </enum>
+
         <request name="release" type="destructor">
             <description summary="release dscm">
                 This request indicates that the client will not use the dscm
@@ -58,12 +63,23 @@
 
         <request name="eval">
             <description summary="evaluate scheme expression">
-              Evaluate custom Scheme/Guile expression(s) in the dwl-guile
-              context. All dwl-guile bindings will be available during
-              the evaluation, including configuration options.
+                Evaluate custom Scheme/Guile expression(s) in the dwl-guile
+                context. All dwl-guile bindings will be available during
+                the evaluation, including configuration options.
             </description>
             <arg name="exp" type="string" summary="scheme expression to evaluate" />
         </request>
+
+        <event name="eval_result">
+            <description summary="announces the result of a previous evaluation">
+                Sends out the result of a Guile expression evaluation in
+                the form of a string. The status argument tells you whether the
+                evaluation was successful or not. If an error occured, the error
+                message will be available in the result string.
+            </description>
+            <arg name="result" type="string"/>
+            <arg name="status" type="uint" enum="eval_status"/>
+        </event>
 
         <event name="tag">
             <description summary="announces the presence of a tag">

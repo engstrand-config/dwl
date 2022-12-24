@@ -244,6 +244,8 @@ static void dscm_getmon(struct wl_client *client, struct wl_resource *resource,
 			uint32_t id, struct wl_resource *output);
 static void dscm_eval(struct wl_client *client, struct wl_resource *resource,
 		      const char *exp);
+static void dscm_eval_callback(struct wl_resource *resource, char *result,
+			       uint32_t status);
 static void dscm_destroy(struct wl_resource *resource);
 static void dscm_bind(struct wl_client *client, void *data, uint32_t version,
 		      uint32_t id);
@@ -538,7 +540,7 @@ arrange(Monitor *m)
 				   (c = focustop(m)) && c->isfullscreen);
 
 	if (m && m->lt[m->sellt]->arrange)
-		dscm_safe_call(DSCM_CALL_ARRANGE, m->lt[m->sellt]->arrange, m, NULL);
+		dscm_safe_call(DSCM_CALL_ARRANGE, m->lt[m->sellt]->arrange, m);
 	motionnotify(0);
 }
 
@@ -645,7 +647,7 @@ buttonpress(struct wl_listener *listener, void *data)
 			b = buttons[i];
 			if (CLEANMASK(mods) == CLEANMASK(b.mod) &&
 			    event->button == b.button && b.func) {
-				dscm_safe_call(DSCM_CALL_ACTION, b.func, NULL, NULL);
+				dscm_safe_call(DSCM_CALL_ACTION, b.func, NULL);
 				return;
 			}
 		}
@@ -1394,7 +1396,7 @@ keybinding(uint32_t mods, xkb_keycode_t keycode)
 		k = keys[i];
 		if (CLEANMASK(mods) == CLEANMASK(k.mod) &&
 		    keycode == k.keycode && k.func) {
-			dscm_safe_call(DSCM_CALL_ACTION, k.func, NULL, NULL);
+			dscm_safe_call(DSCM_CALL_ACTION, k.func, NULL);
 			handled = 1;
 		}
 	}
@@ -3079,13 +3081,20 @@ dscm_getmon(struct wl_client *client, struct wl_resource *resource,
 }
 
 void
+dscm_eval_callback(struct wl_resource *resource, char *result, uint32_t status)
+{
+	dscm_v1_send_eval_result(resource, result, status);
+}
+
+void
 dscm_eval(struct wl_client *client, struct wl_resource *resource, const char *exp)
 {
 	size_t len = strlen(exp);
 	/* Free'd automatically once the call handler has executed. */
 	char* expcpy = ecalloc(len, sizeof(char));
 	strncpy(expcpy, exp, len);
-	dscm_safe_call(DSCM_CALL_EVAL, NULL, (void*)expcpy, NULL);
+	DscmClient *c = wl_resource_get_user_data(resource);
+	dscm_thread_eval(c->resource, &dscm_eval_callback, (void*)expcpy);
 }
 
 void

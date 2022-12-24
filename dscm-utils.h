@@ -1,11 +1,19 @@
 #pragma once
 
-enum { DSCM_CALL_ARRANGE, DSCM_CALL_ACTION, DSCM_CALL_EVAL };
+#define DSCM_EVAL_SUCCESS 0
+#define DSCM_EVAL_ERROR 1
+
+enum { DSCM_CALL_ARRANGE, DSCM_CALL_ACTION };
 typedef struct {
 	SCM proc;
 	void *args;
-	void (*callback)(char*);
 } dscm_call_data_t;
+
+typedef struct {
+	char *exp;
+	struct wl_resource *resource;
+	void (*callback)(struct wl_resource*, char*, uint32_t);
+} dscm_eval_call_data_t;
 
 static inline SCM
 dscm_alist_get(SCM alist, const char* key)
@@ -155,11 +163,14 @@ dscm_modify_list(SCM list, void *target, void (*iterator)(unsigned int, SCM, voi
 static inline SCM
 dscm_call_eval(void *data)
 {
-	dscm_call_data_t *call_data = data;
-	SCM eval = scm_c_eval_string(call_data->args);
+	dscm_eval_call_data_t *call_data = data;
+	SCM eval = scm_c_eval_string(call_data->exp);
 	SCM evalstr = scm_object_to_string(eval, SCM_UNDEFINED);
 	char *result = scm_to_locale_string(evalstr);
-	fprintf(stderr, "eval result: %s\n", result);
+	(*(call_data->callback))(call_data->resource, result,
+				 DSCM_V1_EVAL_STATUS_SUCCESS);
+	free(call_data->exp);
+	free(call_data);
 	free(result);
 	return SCM_BOOL_T;
 }
@@ -167,23 +178,21 @@ dscm_call_eval(void *data)
 static inline SCM
 dscm_call_thread_handler(void *data, SCM key, SCM args)
 {
-	dscm_call_data_t *call_data = data;
-	/* Check if an exception was thrown */
-	if (scm_is_symbol(key)) {
-		char *exp = call_data->args ? call_data->args : "unknown";
-		fprintf(stderr, "dscm: error in eval of %s\n=> ", exp);
-		scm_display_error(
-			SCM_BOOL_F,
-			scm_current_error_port(),
-			scm_car(args),
-			scm_cadr(args),
-			scm_caddr(args),
-			scm_cadddr(args));
-	}
-
-	free(call_data->args);
+	dscm_eval_call_data_t *call_data = data;
+	SCM error = scm_apply_2(
+		scm_c_public_ref("guile", "format"),
+		SCM_BOOL_F,
+		scm_cadr(args),
+		scm_caddr(args));
+	char *errorstr = scm_to_locale_string(error);
+	fprintf(stderr, "dscm: error in eval of %s\n=> %s\n",
+		call_data->exp, errorstr);
+	(*(call_data->callback))(call_data->resource, errorstr,
+				 DSCM_V1_EVAL_STATUS_ERROR);
+	free(errorstr);
+	free(call_data->exp);
 	free(call_data);
-	return SCM_BOOL_F;
+	return SCM_BOOL_T;
 }
 
 static inline void*
@@ -201,28 +210,26 @@ dscm_call_arrange(void *data)
 }
 
 static inline void
-dscm_safe_call(unsigned int type, scm_t_bits *proc_ptr, void *data,
-	       void (*callback)(char*))
+dscm_safe_call(unsigned int type, scm_t_bits *proc_ptr, void *data)
 {
-	if (proc_ptr == NULL && type != DSCM_CALL_EVAL)
+	if (proc_ptr == NULL)
 		die("dscm: could not call proc that is NULL");
 	SCM proc = SCM_PACK_POINTER(proc_ptr);
-	dscm_call_data_t *proc_data = ecalloc(1, sizeof(dscm_call_data_t));
-	proc_data->proc = proc;
-	proc_data->args = data;
-	switch (type) {
-	case DSCM_CALL_ARRANGE:
-		scm_c_with_continuation_barrier(&dscm_call_arrange, proc_data);
-		free(proc_data);
-		break;
-	case DSCM_CALL_ACTION:
-		scm_c_with_continuation_barrier(&dscm_call_action, proc_data);
-		free(proc_data);
-		break;
-	case DSCM_CALL_EVAL:
-	default:
-		proc_data->callback = callback;
-		scm_spawn_thread(dscm_call_eval, proc_data,
-				 dscm_call_thread_handler, proc_data);
-	}
+	void*(*func)(void*) = type == DSCM_CALL_ARRANGE ?
+		&dscm_call_arrange : &dscm_call_action;
+	scm_c_with_continuation_barrier(
+		func, &((dscm_call_data_t){.proc = proc, .args = data}));
+}
+
+static inline void
+dscm_thread_eval(struct wl_resource *resource,
+		void (*callback)(struct wl_resource*, char*, uint32_t),
+		char *exp)
+{
+	dscm_eval_call_data_t *proc_data = ecalloc(1, sizeof(dscm_eval_call_data_t));
+	proc_data->exp = exp;
+	proc_data->resource = resource;
+	proc_data->callback = callback;
+	scm_spawn_thread(dscm_call_eval, proc_data,
+			 dscm_call_thread_handler, proc_data);
 }
