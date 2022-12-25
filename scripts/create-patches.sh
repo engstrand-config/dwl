@@ -22,5 +22,5 @@ do
         ':(exclude).gitignore' > patches/$patch.patch
 done
 
-# Create dwl-guile patch based on dwl v0.3.1
-git diff v0.3.1 > patches/dwl-guile.patch
+# Create dwl-guile patch based on dwl v0.4-rc3
+git diff v0.4-rc3 > patches/dwl-guile.patch
