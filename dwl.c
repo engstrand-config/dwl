@@ -1458,6 +1458,7 @@ focusmon(const Arg *arg)
 			selmon = dirtomon(arg->i);
 		while (!selmon->wlr_output->enabled && i++ < nmons);
 	focusclient(focustop(selmon), 1);
+	wlr_cursor_warp(cursor, NULL, selmon->m.width / 2 + selmon->m.x, selmon->m.height / 2 + selmon->m.y);
 }
 
 void
