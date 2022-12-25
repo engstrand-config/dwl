@@ -1,8 +1,5 @@
 #pragma once
 
-#define DSCM_EVAL_SUCCESS 0
-#define DSCM_EVAL_ERROR 1
-
 enum { DSCM_CALL_ARRANGE, DSCM_CALL_ACTION };
 typedef struct {
 	SCM proc;
