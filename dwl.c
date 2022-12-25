@@ -3296,7 +3296,7 @@ main(int argc, char *argv[])
 	int c;
 	char *startup_cmd = NULL, *runtimedir = NULL, *exp = NULL;
 
-	while ((c = getopt(argc, argv, "s:c:e:h:v")) != -1) {
+	while ((c = getopt(argc, argv, "s:c:e:hv")) != -1) {
 		if (c == 's')
 			startup_cmd = optarg;
 		else if (c == 'c')
@@ -3308,8 +3308,6 @@ main(int argc, char *argv[])
 		else
 			goto usage;
 	}
-	if (optind < argc)
-		goto usage;
 
 	// Wayland requires XDG_RUNTIME_DIR for creating its communications
 	// socket
