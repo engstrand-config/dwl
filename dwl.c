@@ -1995,6 +1995,8 @@ reloadconfig() {
 		arrange(m);
 	}
 
+	wlr_scene_rect_set_color(locked_bg, lockscreen_bg);
+
 	/* Send events to observing clients, notifying of possible changes */
 	dscm_sendevents();
 }
