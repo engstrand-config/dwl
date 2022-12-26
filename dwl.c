@@ -1977,7 +1977,7 @@ reloadconfig() {
 	Client *c;
 	Monitor *m;
 	float *color;
-	dscm_config_parse(config_file);
+	dscm_config_parse();
 
 	/* Redraw clients */
 	wl_list_for_each(c, &clients, link) {
