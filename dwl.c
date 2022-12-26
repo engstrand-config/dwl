@@ -880,9 +880,7 @@ commitnotify(struct wl_listener *listener, void *data)
 		c->isfloating ? resize(c, c->geom, 1, c->bw) : arrange(c->mon);
 
 	/* mark a pending resize as completed */
-	if (c->resize && (c->resize <= c->surface.xdg->current.configure_serial
-			  || (c->surface.xdg->current.geometry.width == c->surface.xdg->pending.geometry.width
-			      && c->surface.xdg->current.geometry.height == c->surface.xdg->pending.geometry.height)))
+	if (c->resize && (c->resize <= c->surface.xdg->current.configure_serial))
 		c->resize = 0;
 }
 
@@ -2013,7 +2011,7 @@ rendermon(struct wl_listener *listener, void *data)
 	/* Render if no XDG clients have an outstanding resize and are visible on
 	 * this monitor. */
 	wl_list_for_each(c, &clients, link)
-		if (client_is_rendered_on_mon(c, m) && (!c->isfloating && c->resize) && !client_is_stopped(c))
+		if (client_is_rendered_on_mon(c, m) && (!c->isfloating && c->resize))
 			goto skip;
 	if (!wlr_scene_output_commit(m->scene_output))
 		return;
