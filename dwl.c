@@ -2468,7 +2468,7 @@ setup()
 	wl_signal_add(&session_lock_mgr->events.new_lock, &session_lock_create_lock);
 	wl_signal_add(&session_lock_mgr->events.destroy, &session_lock_mgr_destroy);
 	locked_bg = wlr_scene_rect_create(layers[LyrBlock], sgeom.width, sgeom.height,
-			(float [4]){0.1, 0.1, 0.1, 1.0});
+					  lockscreen_bg);
 	wlr_scene_node_set_enabled(&locked_bg->node, 0);
 
 	/* Use decoration protocols to negotiate server-side decorations */

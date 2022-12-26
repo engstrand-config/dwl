@@ -21,6 +21,7 @@ static float *rootcolor              = NULL;
 static float *bordercolor            = NULL;
 static float *focuscolor             = NULL;
 static float *fullscreen_bg          = NULL;
+static float *lockscreen_bg          = NULL;
 static char **tags                   = NULL;
 static char **termcmd                = NULL;
 static char **menucmd                = NULL;
@@ -188,6 +189,8 @@ dscm_config_parse()
 				       sizeof(float), 0, &dscm_parse_color, NULL);
 	fullscreen_bg = dscm_iterate_list(dscm_alist_get(colors, "fullscreen"),
 					  sizeof(float), 0, &dscm_parse_color, NULL);
+	lockscreen_bg = dscm_iterate_list(dscm_alist_get(colors, "lockscreen"),
+					  sizeof(float), 0, &dscm_parse_color, NULL);
 	tags = dscm_iterate_list(dscm_alist_get(config, "tags"),
 				 sizeof(char*), 0, &dscm_parse_string, &numtags);
 	termcmd = dscm_iterate_list(dscm_alist_get(config, "terminal"),
@@ -232,6 +235,7 @@ dscm_config_cleanup()
 	free(bordercolor);
 	free(focuscolor);
 	free(fullscreen_bg);
+	free(lockscreen_bg);
 	free((char*)xkb_rules->rules);
 	free((char*)xkb_rules->model);
 	free((char*)xkb_rules->layout);
