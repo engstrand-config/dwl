@@ -320,16 +320,19 @@ dscm_binding_reloadconfig()
 static inline SCM
 dscm_binding_set(SCM key, SCM value)
 {
-	SCM meta = scm_hash_ref(_metadata, key, SCM_UNDEFINED);
-	if (scm_is_false(meta))
-		return SCM_BOOL_F;
+	SCM meta = scm_hash_ref(metadata, key, SCM_UNDEFINED);
+	DSCM_ASSERT_OPTION(meta, key);
 
 	void *cvar = scm_to_pointer(scm_car(meta));
 	dscm_setter_t setter = (dscm_setter_t)scm_to_pointer(scm_cadr(meta));
-	dscm_reloader_t reloader = (dscm_reloader_t)scm_to_pointer(scm_caddr(meta));
-
 	(*setter)(cvar, value);
-	(*reloader)();
+
+	SCM reloader = scm_caddr(meta);
+	if (!scm_is_false(reloader)) {
+		dscm_reloader_t func = (dscm_reloader_t)scm_to_pointer(reloader);
+		(*func)();
+	}
+
 	return SCM_BOOL_T;
 }
 
