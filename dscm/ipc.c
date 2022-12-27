@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <wayland-client.h>
-#include "util.h"
-#include "dscm-ipc.h"
+#include "ipc.h"
+#include "../util.h"
 #include "../dscm-unstable-v1-protocol-client.h"
 
 static struct dscm_v1 *dscm;

@@ -3,7 +3,6 @@ dwl
 *-protocol.c
 *-protocol.h
 .ccls-cache
-config.h
 config.scm
 dwl.log
 *.patch

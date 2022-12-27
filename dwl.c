@@ -488,10 +488,10 @@ static Atom netatom[NetLast];
 #include "client.h"
 
 /* include guile config and bindings */
-#include "dscm/dscm-ipc.h"
-#include "dscm/dscm-utils.h"
-#include "dscm/dscm-config.h"
-#include "dscm/dscm-bindings.h"
+#include "dscm/ipc.h"
+#include "dscm/utils.h"
+#include "dscm/config.h"
+#include "dscm/bindings.h"
 
 /* function implementations */
 void
