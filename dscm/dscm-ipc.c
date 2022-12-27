@@ -3,7 +3,7 @@
 #include <wayland-client.h>
 #include "util.h"
 #include "dscm-ipc.h"
-#include "dscm-unstable-v1-protocol-client.h"
+#include "../dscm-unstable-v1-protocol-client.h"
 
 static struct dscm_v1 *dscm;
 static struct wl_display *display;

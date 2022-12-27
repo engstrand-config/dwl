@@ -61,8 +61,8 @@ dscm-unstable-v1-protocol.c:
 dscm-unstable-v1-protocol.o: dscm-unstable-v1-protocol.h
 dscm-unstable-v1-protocol-client.o: dscm-unstable-v1-protocol-client.h
 
-dscm-ipc.o: dscm-unstable-v1-protocol-client.h util.h
+dscm/dscm-ipc.o: dscm-unstable-v1-protocol-client.h util.h
 
-dwl.o: dscm-utils.h dscm-bindings.h dscm-config.h dscm-ipc.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h dscm-unstable-v1-protocol.h util.h
+dwl.o: dscm/dscm-utils.h dscm/dscm-bindings.h dscm/dscm-config.h dscm/dscm-ipc.h client.h xdg-shell-protocol.h wlr-layer-shell-unstable-v1-protocol.h dscm-unstable-v1-protocol.h util.h
 
-dwl: xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o util.o dscm-unstable-v1-protocol.o dscm-ipc.o
+dwl: xdg-shell-protocol.o wlr-layer-shell-unstable-v1-protocol.o util.o dscm-unstable-v1-protocol.o dscm/dscm-ipc.o
