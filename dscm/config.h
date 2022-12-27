@@ -1,6 +1,6 @@
 #pragma once
 
-#define DSCM_DEFINE_P(CVAR, KEY, SETTER, RELOADER)		\
+#define DSCM_DEFINE_P(CVAR, KEY, SETTER, RELOADER)			\
 	{								\
 		SCM m1 = scm_from_pointer(&(CVAR), NULL);		\
 		SCM m2 = scm_from_pointer(SETTER, NULL);		\
@@ -34,8 +34,6 @@
 	if (scm_is_false(RESULT)) scm_misc_error(			\
 		"dwl:set", "Invalid option: '~a", scm_list_1(KEY))
 
-#define DEFAULT_ROOTCOLOR {0.0, 0.0, 0.0, 1.0}
-
 SCM config;
 SCM metadata;
 
@@ -61,14 +59,14 @@ static float focuscolor[4]    = {1.0, 0.0, 0.0, 1.0};
 static float fullscreen_bg[4] = {0.1, 0.1, 0.1, 1.0};
 static float lockscreen_bg[4] = {0.1, 0.1, 0.1, 1.0};
 
-static char **tags                   = NULL;
-static char **termcmd                = NULL;
-static char **menucmd                = NULL;
-static Layout *layouts               = NULL;
-static MonitorRule *monrules         = NULL;
-static Rule *rules                   = NULL;
-static Key *keys                     = NULL;
-static Button *buttons               = NULL;
+static char **tags                      = NULL;
+static char **termcmd                   = NULL;
+static char **menucmd                   = NULL;
+static Layout *layouts                  = NULL;
+static MonitorRule *monrules            = NULL;
+static Rule *rules                      = NULL;
+static Key *keys                        = NULL;
+static Button *buttons                  = NULL;
 static struct xkb_rule_names *xkb_rules = NULL;
 
 static unsigned int numtags     = 0;
@@ -118,7 +116,8 @@ setter_double(void *cvar, SCM value)
 static inline void
 setter_color(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE(scm_list(value) || scm_is_string(value), value, "float[4] or string");
+	DSCM_ASSERT_TYPE(scm_list(value) || scm_is_string(value),
+			 value, "float[4] or string");
 
 	float color[4];
 	if (scm_is_string(value)) {
@@ -129,7 +128,7 @@ setter_color(void *cvar, SCM value)
 			str++;
 		int len = strlen(str);
 
-		// Disallows "0x" prefix that strtoul would ignore
+		/* Disallows "0x" prefix that strtoul would ignore */
 		DSCM_ASSERT(((len == 6 || len == 8) &&
 			     isxdigit(str[0]) && isxdigit(str[1])),
 			    "Invalid hex color: ~s", value);
@@ -158,6 +157,28 @@ setter_color(void *cvar, SCM value)
 		color[3] = length == 4 ? (float)scm_to_double(scm_cadddr(value)) : 1.0;
 	}
 	memcpy(cvar, color, sizeof(color));
+}
+
+static inline void
+setter_xkb_rules(void *cvar, SCM value)
+{
+	DSCM_ASSERT_TYPE(scm_list(value), value, "alist");
+	struct xkb_rule_names *xkb = (*((struct xkb_rule_names**)cvar));
+	if (xkb) {
+		if (xkb->rules) free((char*)xkb->rules);
+		if (xkb->model) free((char*)xkb->model);
+		if (xkb->layout) free((char*)xkb->layout);
+		if (xkb->variant) free((char*)xkb->variant);
+		if (xkb->options) free((char*)xkb->options);
+	} else {
+		xkb = calloc(1, sizeof(struct xkb_rule_names));
+	}
+
+	xkb->rules = dscm_alist_get_string(value, "rules");
+	xkb->model = dscm_alist_get_string(value, "model");
+	xkb->layout = dscm_alist_get_string(value, "layout");
+	xkb->variant = dscm_alist_get_string(value, "variant");
+	xkb->options = dscm_alist_get_string(value, "options");
 }
 
 static inline void
@@ -218,6 +239,32 @@ static inline void
 reload_lockscreen_bg()
 {
 	wlr_scene_rect_set_color(locked_bg, lockscreen_bg);
+}
+
+static inline void
+reload_xkb_rules()
+{
+	Keyboard *kb;
+	struct xkb_keymap *keymap;
+	struct xkb_context *context;
+	wl_list_for_each(kb, &keyboards, link) {
+		context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+		keymap = xkb_keymap_new_from_names(context, xkb_rules,
+						   XKB_KEYMAP_COMPILE_NO_FLAGS);
+
+		wlr_keyboard_set_keymap(kb->wlr_keyboard, keymap);
+		xkb_keymap_unref(keymap);
+		xkb_context_unref(context);
+	}
+}
+
+static inline void
+reload_keyboard_repeat_info()
+{
+	Keyboard *kb;
+	wl_list_for_each(kb, &keyboards, link)
+		wlr_keyboard_set_repeat_info(kb->wlr_keyboard, repeat_rate,
+					     repeat_delay);
 }
 
 static inline void
@@ -296,21 +343,6 @@ dscm_parse_button(unsigned int index, SCM button, void *data)
 	};
 }
 
-static inline struct xkb_rule_names *
-dscm_parse_xkb_rules(SCM config)
-{
-	SCM xkb = dscm_alist_get(config, "xkb-rules");
-	struct xkb_rule_names *dest = calloc(1, sizeof(struct xkb_rule_names));
-	*dest = (struct xkb_rule_names){
-		.rules = dscm_alist_get_string(xkb, "rules"),
-		.model = dscm_alist_get_string(xkb, "model"),
-		.layout = dscm_alist_get_string(xkb, "layouts"),
-		.variant = dscm_alist_get_string(xkb, "variants"),
-		.options = dscm_alist_get_string(xkb, "options"),
-	};
-	return dest;
-}
-
 static inline void
 dscm_config_initialize()
 {
@@ -328,8 +360,12 @@ dscm_config_initialize()
 	DSCM_DEFINE (bypass_surface_visibility, "bypass-surface-visibility", 1,
 		     &setter_uint, NULL);
 
-	DSCM_DEFINE (repeat_rate, "repeat-rate", 50, &setter_uint, &reload_inputdevice);
-	DSCM_DEFINE (repeat_delay, "repeat-delay", 300, &setter_uint, &reload_inputdevice);
+	DSCM_DEFINE (repeat_rate, "repeat-rate", 50,
+		     &setter_uint, &reload_keyboard_repeat_info);
+	DSCM_DEFINE (repeat_delay, "repeat-delay", 300,
+		     &setter_uint, &reload_keyboard_repeat_info);
+	DSCM_DEFINE (xkb_rules, "xkb-rules", NULL, &setter_xkb_rules, &reload_xkb_rules);
+
 	DSCM_DEFINE (tap_to_click, "tap-to-click", 1, &setter_uint, &reload_inputdevice);
 	DSCM_DEFINE (tap_and_drag, "tap-and-drag", 1, &setter_uint, &reload_inputdevice);
 	DSCM_DEFINE (drag_lock, "drag-lock", 1, &setter_uint, &reload_inputdevice);
@@ -383,6 +419,5 @@ dscm_config_initialize()
 				 sizeof(Key), 0, &dscm_parse_key, &numkeys);
 	buttons = dscm_iterate_list(dscm_alist_get(config, "buttons"),
 				    sizeof(Button), 0, &dscm_parse_button, &numbuttons);
-	xkb_rules = dscm_parse_xkb_rules(config);
 	TAGMASK = ((1 << numtags) - 1);
 }

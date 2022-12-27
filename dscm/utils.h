@@ -35,7 +35,7 @@ dscm_alist_get_eval(SCM alist, const char *key)
 }
 
 static inline char*
-dscm_alist_get_string(SCM alist, const char* key)
+dscm_alist_get_string(SCM alist, const char *key)
 {
 	SCM value = dscm_alist_get(alist, key);
 	if (scm_is_string(value))
