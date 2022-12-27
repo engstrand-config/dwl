@@ -1,5 +1,20 @@
 #pragma once
 
+#define DSCM_DEFINE(CVAR, KEY, DEFVAL, SETTER, RELOADER)		\
+	(CVAR) = DEFVAL;						\
+	SCM m1 = scm_from_pointer(&(CVAR), NULL);			\
+	SCM m2 = scm_from_pointer(SETTER, NULL);			\
+	SCM m3 = scm_from_pointer(RELOADER, NULL);			\
+	scm_gc_protect_object(m1);					\
+	scm_gc_protect_object(m2);					\
+	scm_gc_protect_object(m3);					\
+	scm_hash_set_x(							\
+		_metadata,						\
+		scm_string_to_symbol(scm_from_locale_string(KEY)),	\
+		scm_list_3(m1, m2, m3))
+
+SCM _config;
+SCM _metadata;
 SCM config;
 
 /* Config variable definitions. */
@@ -53,6 +68,30 @@ static uint32_t send_events_mode = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
 static enum libinput_config_scroll_method scroll_method = LIBINPUT_CONFIG_SCROLL_2FG;
 static enum libinput_config_click_method click_method = LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS;
 static enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TAP_MAP_LRM;
+
+static inline void
+dscm_setter_int(void *cvar, SCM value)
+{
+	if (!scm_integer_p(value))
+		/* raise exception to cause eval_result event to be sent */
+		return;
+	(*((int*)cvar)) = scm_to_int(value);
+}
+
+static inline void
+reload_borderpx()
+{
+	Client *c;
+	int draw_borders;
+	wl_list_for_each(c, &clients, link) {
+		draw_borders = c->bw;
+		resize(c, c->geom, 0, draw_borders);
+	}
+}
+
+static inline void
+dscm_config_cleanup()
+{}
 
 static inline void
 dscm_parse_color(unsigned int index, SCM value, void *data)
@@ -147,14 +186,121 @@ dscm_parse_xkb_rules(SCM config)
 	return dest;
 }
 
-static inline void
-dscm_config_parse()
-{
-	scm_c_primitive_load(config_file);
-	config = dscm_get_variable("config");
+/* static inline void */
+/* dscm_config_initialize() */
+/* { */
+/*	scm_c_primitive_load(config_file); */
 
+/*	config = dscm_get_variable("config"); */
+/*	sloppyfocus = dscm_alist_get_int(config, "sloppy-focus"); */
+/*	borderpx = dscm_alist_get_unsigned_int(config, "border-px", 25); */
+/*	repeat_rate = dscm_alist_get_unsigned_int(config, "repeat-rate", 5000); */
+/*	repeat_delay = dscm_alist_get_unsigned_int(config, "repeat-delay", 5000); */
+/*	default_alpha = dscm_alist_get_double(config, "default-alpha"); */
+/*	gappih = dscm_alist_get_unsigned_int(config, "gaps-horizontal-inner", -1); */
+/*	gappiv = dscm_alist_get_unsigned_int(config, "gaps-vertical-inner", -1); */
+/*	gappoh = dscm_alist_get_unsigned_int(config, "gaps-horizontal-outer", -1); */
+/*	gappov = dscm_alist_get_unsigned_int(config, "gaps-vertical-outer", -1); */
+/*	smartgaps = dscm_alist_get_int(config, "smart-gaps"); */
+/*	smartborders = dscm_alist_get_int(config, "smart-borders"); */
+
+/*	accel_speed = dscm_alist_get_double(config, "acceleration-speed"); */
+/*	tap_to_click = dscm_alist_get_int(config, "tap-to-click"); */
+/*	tap_and_drag = dscm_alist_get_int(config, "tap-and-drag"); */
+/*	drag_lock = dscm_alist_get_int(config, "drag-lock"); */
+/*	natural_scrolling = dscm_alist_get_int(config, "natural-scrolling"); */
+/*	disable_while_typing = dscm_alist_get_int(config, "disable-while-typing"); */
+/*	left_handed = dscm_alist_get_int(config, "left-handed"); */
+/*	middle_button_emulation = dscm_alist_get_int(config, "middle-button-emulation"); */
+
+/*	accel_profile = scm_to_int(dscm_alist_get_eval(config, "acceleration-profile")); */
+/*	send_events_mode = scm_to_int(dscm_alist_get_eval(config, "send-events-mode")); */
+/*	scroll_method = scm_to_int(dscm_alist_get_eval(config, "scroll-method")); */
+/*	click_method = scm_to_int(dscm_alist_get_eval(config, "click-method")); */
+/*	button_map = scm_to_int(dscm_alist_get_eval(config, "button-map")); */
+
+/*	SCM colors = dscm_alist_get(config, "colors"); */
+/*	rootcolor = dscm_iterate_list(dscm_alist_get(colors, "root"), */
+/*				      sizeof(float), 0, &dscm_parse_color, NULL); */
+/*	bordercolor = dscm_iterate_list(dscm_alist_get(colors, "border"), */
+/*					sizeof(float), 0, &dscm_parse_color, NULL); */
+/*	focuscolor = dscm_iterate_list(dscm_alist_get(colors, "focus"), */
+/*				       sizeof(float), 0, &dscm_parse_color, NULL); */
+/*	fullscreen_bg = dscm_iterate_list(dscm_alist_get(colors, "fullscreen"), */
+/*					  sizeof(float), 0, &dscm_parse_color, NULL); */
+/*	lockscreen_bg = dscm_iterate_list(dscm_alist_get(colors, "lockscreen"), */
+/*					  sizeof(float), 0, &dscm_parse_color, NULL); */
+/*	tags = dscm_iterate_list(dscm_alist_get(config, "tags"), */
+/*				 sizeof(char*), 0, &dscm_parse_string, &numtags); */
+/*	termcmd = dscm_iterate_list(dscm_alist_get(config, "terminal"), */
+/*				    sizeof(char*), 1, &dscm_parse_string, NULL); */
+/*	menucmd = dscm_iterate_list(dscm_alist_get(config, "menu"), */
+/*				    sizeof(char*), 1, &dscm_parse_string, NULL); */
+/*	layouts = dscm_iterate_list(dscm_alist_get(config, "layouts"), */
+/*				    sizeof(Layout), 0, &dscm_parse_layout, &numlayouts); */
+/*	rules = dscm_iterate_list(dscm_alist_get(config, "rules"), */
+/*				  sizeof(Rule), 0, &dscm_parse_rule, &numrules); */
+/*	monrules = dscm_iterate_list(dscm_alist_get(config, "monitor-rules"), */
+/*				     sizeof(MonitorRule), 0, &dscm_parse_monitor_rule, &nummonrules); */
+/*	keys = dscm_iterate_list(dscm_alist_get(config, "keys"), */
+/*				 sizeof(Key), 0, &dscm_parse_key, &numkeys); */
+/*	buttons = dscm_iterate_list(dscm_alist_get(config, "buttons"), */
+/*				    sizeof(Button), 0, &dscm_parse_button, &numbuttons); */
+/*	xkb_rules = dscm_parse_xkb_rules(config); */
+/*	TAGMASK = ((1 << numtags) - 1); */
+
+/*	DSCM_DEFINE_OPTION (repeat_rate, "repeat-rate", 25, */
+/*			    scm_from_int, scm_to_int, dscm_reactive_repeat_rate); */
+
+/*	/\* scm_hash_set_x(_config, scm_string_to_symbol("repeat-rate"), scm_from_int(25)); *\/ */
+/*	scm_hash_set_x(_metadata, scm_string_to_symbol("repeat-rate"), */
+/*		       scm_list_2(scm_from_pointer(&scm_to_int), */
+/*				  scm_from_pointer(&dscm_update_repeat_rate))); */
+/* } */
+
+/* static inline void */
+/* dscm_config_cleanup() */
+/* { */
+/*	fprintf(stdout, "dscm: starting cleanup\n"); */
+/*	int i; */
+/*	char **str; */
+/*	for (i = 0; i < numtags; i++) free(tags[i]); */
+/*	for (str = termcmd; *str != NULL; str++) free(*str); */
+/*	for (str = menucmd; *str != NULL; str++) free(*str); */
+/*	for (i = 0; i < numlayouts; i++) free(layouts[i].symbol); */
+/*	for (i = 0; i < nummonrules; i++) free(monrules[i].name); */
+/*	for (i = 0; i < numrules; i++) { */
+/*		Rule r = rules[i]; */
+/*		free(r.id); */
+/*		free(r.title); */
+/*	} */
+/*	free(layouts); */
+/*	free(monrules); */
+/*	free(keys); */
+/*	free(buttons); */
+/*	free(rootcolor); */
+/*	free(bordercolor); */
+/*	free(focuscolor); */
+/*	free(fullscreen_bg); */
+/*	free(lockscreen_bg); */
+/*	free((char*)xkb_rules->rules); */
+/*	free((char*)xkb_rules->model); */
+/*	free((char*)xkb_rules->layout); */
+/*	free((char*)xkb_rules->variant); */
+/*	free((char*)xkb_rules->options); */
+/*	free(xkb_rules); */
+/* } */
+
+static inline void
+dscm_config_initialize()
+{
+	_metadata = scm_make_hash_table(scm_from_int(1));
+	DSCM_DEFINE (borderpx, "border-px", 1, &dscm_setter_int, &reload_borderpx);
+	scm_c_primitive_load(config_file);
+
+	config = dscm_get_variable("config");
 	sloppyfocus = dscm_alist_get_int(config, "sloppy-focus");
-	borderpx = dscm_alist_get_unsigned_int(config, "border-px", 25);
+	/* borderpx = dscm_alist_get_unsigned_int(config, "border-px", 25); */
 	repeat_rate = dscm_alist_get_unsigned_int(config, "repeat-rate", 5000);
 	repeat_delay = dscm_alist_get_unsigned_int(config, "repeat-delay", 5000);
 	default_alpha = dscm_alist_get_double(config, "default-alpha");
@@ -209,37 +355,4 @@ dscm_config_parse()
 				    sizeof(Button), 0, &dscm_parse_button, &numbuttons);
 	xkb_rules = dscm_parse_xkb_rules(config);
 	TAGMASK = ((1 << numtags) - 1);
-}
-
-static inline void
-dscm_config_cleanup()
-{
-	fprintf(stdout, "dscm: starting cleanup\n");
-	int i;
-	char **str;
-	for (i = 0; i < numtags; i++) free(tags[i]);
-	for (str = termcmd; *str != NULL; str++) free(*str);
-	for (str = menucmd; *str != NULL; str++) free(*str);
-	for (i = 0; i < numlayouts; i++) free(layouts[i].symbol);
-	for (i = 0; i < nummonrules; i++) free(monrules[i].name);
-	for (i = 0; i < numrules; i++) {
-		Rule r = rules[i];
-		free(r.id);
-		free(r.title);
-	}
-	free(layouts);
-	free(monrules);
-	free(keys);
-	free(buttons);
-	free(rootcolor);
-	free(bordercolor);
-	free(focuscolor);
-	free(fullscreen_bg);
-	free(lockscreen_bg);
-	free((char*)xkb_rules->rules);
-	free((char*)xkb_rules->model);
-	free((char*)xkb_rules->layout);
-	free((char*)xkb_rules->variant);
-	free((char*)xkb_rules->options);
-	free(xkb_rules);
 }

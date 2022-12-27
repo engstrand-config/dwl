@@ -317,6 +317,22 @@ dscm_binding_reloadconfig()
 	return SCM_BOOL_T;
 }
 
+static inline SCM
+dscm_binding_set(SCM key, SCM value)
+{
+	SCM meta = scm_hash_ref(_metadata, key, SCM_UNDEFINED);
+	if (scm_is_false(meta))
+		return SCM_BOOL_F;
+
+	void *cvar = scm_to_pointer(scm_car(meta));
+	dscm_setter_t setter = (dscm_setter_t)scm_to_pointer(scm_cadr(meta));
+	dscm_reloader_t reloader = (dscm_reloader_t)scm_to_pointer(scm_caddr(meta));
+
+	(*setter)(cvar, value);
+	(*reloader)();
+	return SCM_BOOL_T;
+}
+
 static inline void
 dscm_register()
 {
@@ -425,4 +441,5 @@ dscm_register()
 
 	/* dwl-guile specific bindings */
 	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_binding_reloadconfig);
+	scm_c_define_gsubr("dwl:set", 2, 0, 0, &dscm_binding_set);
 }

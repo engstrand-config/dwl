@@ -12,6 +12,9 @@ typedef struct {
 	void (*callback)(struct wl_resource*, char*, uint32_t);
 } dscm_eval_call_data_t;
 
+typedef void(*dscm_reloader_t)();
+typedef void(*dscm_setter_t)(void*, SCM);
+
 static inline SCM
 dscm_alist_get(SCM alist, const char* key)
 {

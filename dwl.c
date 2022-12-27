@@ -1974,31 +1974,31 @@ quitsignal(int signo)
 
 void
 reloadconfig() {
-	Client *c;
-	Monitor *m;
-	float *color;
-	dscm_config_parse();
+	/* Client *c; */
+	/* Monitor *m; */
+	/* float *color; */
+	/* scm_c_primitive_load(config_file); */
 
-	/* Redraw clients */
-	wl_list_for_each(c, &clients, link) {
-		if (c->bw > 0)
-			c->bw = borderpx;
-		color = focustop(selmon) == c ? focuscolor : bordercolor;
-		resize(c, c->geom, 0, c->bw);
-		for (int i = 0; i < 4; i++)
-			wlr_scene_rect_set_color(c->border[i], color);
-	}
+	/* /\* Redraw clients *\/ */
+	/* wl_list_for_each(c, &clients, link) { */
+	/*	if (c->bw > 0) */
+	/*		c->bw = borderpx; */
+	/*	color = focustop(selmon) == c ? focuscolor : bordercolor; */
+	/*	resize(c, c->geom, 0, c->bw); */
+	/*	for (int i = 0; i < 4; i++) */
+	/*		wlr_scene_rect_set_color(c->border[i], color); */
+	/* } */
 
-	/* Rearrange clients on all monitors */
-	wl_list_for_each(m, &mons, link) {
-		defaultgaps(NULL);
-		arrange(m);
-	}
+	/* /\* Rearrange clients on all monitors *\/ */
+	/* wl_list_for_each(m, &mons, link) { */
+	/*	defaultgaps(NULL); */
+	/*	arrange(m); */
+	/* } */
 
-	wlr_scene_rect_set_color(locked_bg, lockscreen_bg);
+	/* wlr_scene_rect_set_color(locked_bg, lockscreen_bg); */
 
-	/* Send events to observing clients, notifying of possible changes */
-	dscm_sendevents();
+	/* /\* Send events to observing clients, notifying of possible changes *\/ */
+	/* dscm_sendevents(); */
 }
 
 void
@@ -3318,7 +3318,7 @@ main(int argc, char *argv[])
 		die("error: config path must be set using '-c'");
 	scm_init_guile();
 	dscm_register();
-	dscm_config_parse();
+	dscm_config_initialize();
 	setup();
 	writepid(runtimedir);
 	run(startup_cmd);
