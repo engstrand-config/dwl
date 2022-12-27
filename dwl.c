@@ -3255,8 +3255,9 @@ dscm_eval(struct wl_client *client, struct wl_resource *resource, const char *ex
 {
 	size_t len = strlen(exp);
 	/* Free'd automatically once the call handler has executed. */
-	char* expcpy = ecalloc(len, sizeof(char));
-	strncpy(expcpy, exp, len);
+	char* expcpy = ecalloc(len + 1, sizeof(char));
+	/* len + 1 to automatically pad with NULL */
+	strncpy(expcpy, exp, len + 1);
 	DscmClient *c = wl_resource_get_user_data(resource);
 	dscm_thread_eval(c->resource, &dscm_eval_callback, (void*)expcpy);
 }
