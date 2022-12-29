@@ -90,12 +90,6 @@ typedef union {
 	void *v;
 } Arg;
 
-typedef struct {
-	unsigned int mod;
-	unsigned int button;
-	scm_t_bits *func;
-} Button;
-
 typedef struct Monitor Monitor;
 typedef struct {
 	/* Must keep these three elements in this order */
@@ -137,10 +131,11 @@ typedef struct {
 } Client;
 
 typedef struct {
-	uint32_t mod;
-	xkb_keycode_t keycode;
-	scm_t_bits *func;
-} Key;
+	unsigned int mod;
+	unsigned int key;
+	scm_t_bits *action;
+	struct wl_list link;
+} Binding;
 
 typedef struct {
 	struct wl_list link;
@@ -170,9 +165,10 @@ typedef struct {
 } LayerSurface;
 
 typedef struct {
+	char *id;
 	char *symbol;
 	scm_t_bits *arrange;
-	char *id;
+	struct wl_list link;
 } Layout;
 
 typedef struct {
@@ -219,6 +215,7 @@ typedef struct {
 	float scale;
 	const Layout *lt;
 	enum wl_output_transform rr;
+	struct wl_list link;
 } MonitorRule;
 
 typedef struct {
@@ -228,6 +225,7 @@ typedef struct {
 	int isfloating;
 	double alpha;
 	int monitor;
+	struct wl_list link;
 } Rule;
 
 typedef struct {
@@ -310,7 +308,7 @@ static Client *focustop(Monitor *m);
 static void fullscreennotify(struct wl_listener *listener, void *data);
 static void incnmaster(const Arg *arg);
 static void inputdevice(struct wl_listener *listener, void *data);
-static int keybinding(uint32_t mods, xkb_keycode_t keycode);
+static int keybinding(uint32_t mods, xkb_keysym_t keysym);
 static void keypress(struct wl_listener *listener, void *data);
 static void keypressmod(struct wl_listener *listener, void *data);
 static void killclient(const Arg *arg);
@@ -490,6 +488,7 @@ static Atom netatom[NetLast];
 
 /* include guile config and bindings */
 #include "dscm/ipc.h"
+#include "dscm/keycodes.h"
 #include "dscm/utils.h"
 #include "dscm/config.h"
 #include "dscm/bindings.h"
@@ -528,7 +527,7 @@ applyrules(Client *c)
 	/* rule matching */
 	const char *appid, *title;
 	unsigned int j, newtags = 0;
-	Rule r;
+	Rule *r;
 	Monitor *mon = selmon, *m;
 
 	c->isfloating = client_is_float_type(c);
@@ -538,16 +537,15 @@ applyrules(Client *c)
 		title = broken;
 
 
-	for (int i = 0; i < numrules; i++) {
-		r = rules[i];
-		if ((!r.title || strstr(title, r.title))
-		    && (!r.id || strstr(appid, r.id))) {
-			c->isfloating = r.isfloating;
-			c->alpha = r.alpha;
-			newtags |= r.tags;
+	wl_list_for_each(r, &rules, link) {
+		if ((!r->title || strstr(title, r->title))
+		    && (!r->id || strstr(appid, r->id))) {
+			c->isfloating = r->isfloating;
+			c->alpha = r->alpha;
+			newtags |= r->tags;
 			j = 0;
 			wl_list_for_each(m, &mons, link)
-				if (r.monitor == j++)
+				if (r->monitor == j++)
 					mon = m;
 		}
 	}
@@ -658,7 +656,7 @@ buttonpress(struct wl_listener *listener, void *data)
 	struct wlr_keyboard *keyboard;
 	uint32_t mods;
 	Client *c;
-	Button b;
+	Binding *b;
 
 	IDLE_NOTIFY_ACTIVITY;
 
@@ -675,11 +673,10 @@ buttonpress(struct wl_listener *listener, void *data)
 
 		keyboard = wlr_seat_get_keyboard(seat);
 		mods = keyboard ? wlr_keyboard_get_modifiers(keyboard) : 0;
-		for (int i = 0; i < numbuttons; i++) {
-			b = buttons[i];
-			if (CLEANMASK(mods) == CLEANMASK(b.mod) &&
-			    event->button == b.button && b.func) {
-				dscm_safe_call(DSCM_CALL_ACTION, b.func, NULL);
+		wl_list_for_each(b, &buttons, link) {
+			if (CLEANMASK(mods) == CLEANMASK(b->mod) &&
+			    event->button == b->key && b->action) {
+				dscm_safe_call(DSCM_CALL_ACTION, b->action, NULL);
 				return;
 			}
 		}
@@ -1006,7 +1003,7 @@ createmon(struct wl_listener *listener, void *data)
 	 * monitor) becomes available. */
 	struct wlr_output *wlr_output = data;
 	size_t i;
-	MonitorRule r;
+	MonitorRule *r;
 	Monitor *m = wlr_output->data = ecalloc(1, sizeof(*m));
 	wl_list_init(&m->dscm);
 
@@ -1022,15 +1019,14 @@ createmon(struct wl_listener *listener, void *data)
 	for (i = 0; i < LENGTH(m->layers); i++)
 		wl_list_init(&m->layers[i]);
 	m->tagset[0] = m->tagset[1] = 1;
-	for (int i = 0; i < nummonrules; i++) {
-		r = monrules[i];
-		if (!r.name || strstr(wlr_output->name, r.name)) {
-			m->mfact = r.mfact;
-			m->nmaster = r.nmaster;
-			wlr_output_set_scale(wlr_output, r.scale);
-			wlr_xcursor_manager_load(cursor_mgr, r.scale);
-			m->lt[0] = m->lt[1] = r.lt;
-			wlr_output_set_transform(wlr_output, r.rr);
+	wl_list_for_each(r, &monrules, link) {
+		if (!r->name || strstr(wlr_output->name, r->name)) {
+			m->mfact = r->mfact;
+			m->nmaster = r->nmaster;
+			wlr_output_set_scale(wlr_output, r->scale);
+			wlr_xcursor_manager_load(cursor_mgr, r->scale);
+			m->lt[0] = m->lt[1] = r->lt;
+			wlr_output_set_transform(wlr_output, r->rr);
 			break;
 		}
 	}
@@ -1184,19 +1180,27 @@ cursorframe(struct wl_listener *listener, void *data)
 void
 cyclelayout(const Arg *arg)
 {
+	if (wl_list_empty(&layouts))
+	    return;
+
 	Layout *l;
 	unsigned int index = 0;
-	for (l = (Layout *)layouts; l != selmon->lt[selmon->sellt]; l++, index++);
+	wl_list_for_each(l, &layouts, link) {
+		if (l == selmon->lt[selmon->sellt])
+			break;
+		index++;
+	}
+	/* TODO: Use wl_container_of */
 	if (arg->i > 0) {
-		if (index < (numlayouts - 1))
-			setlayout(&((Arg) {.v = (l + 1)}));
+		if (l->link.next != NULL)
+			setlayout(&((Arg) {.v = &(l->link.next)}));
 		else
-			setlayout(&((Arg) {.v = layouts}));
+			setlayout(&((Arg) {.v = &(layouts.next)}));
 	} else {
 		if (index > 0)
-			setlayout(&((Arg) {.v = (l - 1)}));
+			setlayout(&((Arg) {.v = &(l->link.prev)}));
 		else
-			setlayout(&((Arg) {.v = &layouts[numlayouts - 1]}));
+			setlayout(&((Arg) {.v = &(layouts.prev)}));
 	}
 }
 
@@ -1512,12 +1516,11 @@ keybinding(uint32_t mods, xkb_keycode_t keycode)
 	 * processing.
 	 */
 	int handled = 0;
-	Key k;
-	for (int i = 0; i < numkeys; i++) {
-		k = keys[i];
-		if (CLEANMASK(mods) == CLEANMASK(k.mod) &&
-		    keycode == k.keycode && k.func) {
-			dscm_safe_call(DSCM_CALL_ACTION, k.func, NULL);
+	Binding *k;
+	wl_list_for_each(k, &keys, link) {
+		if (CLEANMASK(mods) == CLEANMASK(k->mod) &&
+		    keycode == (xkb_keycode_t)k->key && k->action) {
+			dscm_safe_call(DSCM_CALL_ACTION, k->action, NULL);
 			handled = 1;
 		}
 	}
@@ -3087,12 +3090,13 @@ xwaylandready(struct wl_listener *listener, void *data)
 void
 dscm_sendevents(void)
 {
+	Layout *l;
 	DscmClient *c;
 	wl_list_for_each(c, &dscm_clients, link) {
 	    for (int i = 0; i < numtags; i++)
 		    dscm_v1_send_tag(c->resource, tags[i]);
-	    for (int i = 0; i < numlayouts; i++)
-		    dscm_v1_send_layout(c->resource, layouts[i].symbol);
+	    wl_list_for_each(l, &layouts, link)
+		    dscm_v1_send_layout(c->resource, l->symbol);
 	}
 }
 
@@ -3139,7 +3143,8 @@ dscm_printstatusmon(Monitor *m, const DscmMonitor *mon)
 		dscm_monitor_v1_send_tag(mon->resource, tag, state,
 					 numclients, focusedclient);
 	}
-	dscm_monitor_v1_send_layout(mon->resource, m->lt[m->sellt] - layouts);
+	/* TODO: Send id instead? */
+	/* dscm_monitor_v1_send_layout(mon->resource, m->lt[m->sellt] - layouts); */
 	dscm_monitor_v1_send_title(mon->resource, focused ?
 				   client_get_title(focused) : "");
 	dscm_monitor_v1_send_frame(mon->resource);
@@ -3178,20 +3183,21 @@ void
 dscm_setlayout(struct wl_client *client, struct wl_resource *resource,
 	       uint32_t layout)
 {
-	DscmMonitor *mon;
-	Monitor *m;
-	mon = wl_resource_get_user_data(resource);
-	if (!mon)
-		return;
-	m = mon->monitor;
-	if (layout >= numlayouts)
-		return;
-	if (layout != m->lt[m->sellt] - layouts)
-		m->sellt ^= 1;
+	/* TODO */
+	/* DscmMonitor *mon; */
+	/* Monitor *m; */
+	/* mon = wl_resource_get_user_data(resource); */
+	/* if (!mon) */
+	/*	return; */
+	/* m = mon->monitor; */
+	/* if (layout >= wl_list_length(&layouts)) */
+	/*	return; */
+	/* if (layout != m->lt[m->sellt] - layouts) */
+	/*	m->sellt ^= 1; */
 
-	m->lt[m->sellt] = &layouts[layout];
-	arrange(m);
-	printstatus();
+	/* m->lt[m->sellt] = &layouts[layout]; */
+	/* arrange(m); */
+	/* printstatus(); */
 }
 
 void
@@ -3320,6 +3326,7 @@ main(int argc, char *argv[])
 	scm_init_guile();
 	dscm_register();
 	dscm_config_initialize();
+	dscm_config_load();
 	setup();
 	writepid(runtimedir);
 	run(startup_cmd);

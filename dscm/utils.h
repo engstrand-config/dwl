@@ -1,5 +1,16 @@
 #pragma once
 
+#define DSCM_ASSERT(PRED, MSG, ...)					\
+	if (!PRED) scm_misc_error(					\
+		"", MSG, scm_list_n(__VA_ARGS__, SCM_UNDEFINED))
+
+#define DSCM_ASSERT_TYPE(PRED, VALUE, TYPE)				\
+	SCM_ASSERT_TYPE(PRED, VALUE, SCM_ARG2, "", TYPE)
+
+#define DSCM_ASSERT_OPTION(RESULT, KEY)					\
+	if (scm_is_false(RESULT)) scm_misc_error(			\
+		"dwl:set", "Invalid option: '~a", scm_list_1(KEY))
+
 enum { DSCM_CALL_ARRANGE, DSCM_CALL_ACTION };
 typedef struct {
 	SCM proc;
@@ -19,19 +30,6 @@ static inline SCM
 dscm_alist_get(SCM alist, const char* key)
 {
 	return scm_assoc_ref(alist, scm_from_utf8_string(key));
-}
-
-static inline SCM
-dscm_alist_get_eval(SCM alist, const char *key)
-{
-	SCM value = dscm_alist_get(alist, key);
-	if (scm_is_false(value))
-		die("dscm: alist lookup failed for %s, no such key", key);
-	SCM eval = scm_primitive_eval(value);
-	if (scm_is_false(eval))
-		die("dscm: primitive eval failed for %s = %s: #f",
-		    key, scm_to_locale_string(value));
-	return eval;
 }
 
 static inline char*
@@ -74,21 +72,13 @@ dscm_alist_get_float(SCM alist, const char* key)
 }
 
 static inline scm_t_bits *
-dscm_alist_get_proc_pointer(SCM alist, const char *key)
+dscm_get_pointer(SCM action)
 {
-	scm_t_bits *proc = NULL;
-	SCM value = dscm_alist_get(alist, key);
-	if (scm_is_false(value))
-		return proc;
-	SCM eval = scm_primitive_eval(value);
-	/* SCM_UNPACK_POINTER is only allowed on expressions where SCM_IMP is 0 */
-	if (SCM_IMP(eval) == 1)
-		die("dscm: invalid callback procedure. SCM_IMP(proc) = 1");
-	if (scm_procedure_p(eval) == SCM_BOOL_T) {
-		proc = SCM_UNPACK_POINTER(eval);
-		scm_gc_protect_object(eval);
-	}
-	return proc;
+	SCM actionref = scm_primitive_eval(action);
+	DSCM_ASSERT((scm_procedure_p(actionref) == SCM_BOOL_T),
+		    "Invalid action callback: ~s", action);
+	scm_gc_protect_object(actionref);
+	return SCM_UNPACK_POINTER(actionref);
 }
 
 static inline SCM
@@ -158,6 +148,75 @@ dscm_modify_list(SCM list, void *target, void (*iterator)(unsigned int, SCM, voi
 		item = dscm_get_list_item(list, i);
 		(*iterator)(i, item, target);
 	}
+}
+
+static inline void
+dscm_parse_binding_sequence(Binding *b, char *sequence)
+{
+	DSCM_ASSERT((!wl_list_empty(&keyboards)),
+		    "No keyboard available, failed to set key: ~s",
+		    scm_take_locale_string(sequence));
+
+	/* strtok modifies the string passed into it, and the raw binding
+	   string will be used in the future. */
+	int length, hastoken = 0;
+	char *cpyorig = NULL, *next = NULL, *key = NULL;
+	char *cpy = cpyorig = strdup(sequence), *token = strtok(cpy, "-");
+	b->mod = 0;
+
+	while (token) {
+		length = strlen(token);
+		if ((next = strtok(NULL, "-"))) {
+			/* Parse modifier */
+			DSCM_ASSERT((length == 1),
+				    "Invalid modifier in bind sequence: ~s",
+				    scm_take_locale_string(sequence));
+			if (!strcmp(token, "C"))
+				b->mod |= WLR_MODIFIER_CTRL;
+			else if (!strcmp(token, "M"))
+				b->mod |= WLR_MODIFIER_ALT;
+			else if (!strcmp(token, "S"))
+				b->mod |= WLR_MODIFIER_SHIFT;
+			else if (!strcmp(token, "s"))
+				b->mod |= WLR_MODIFIER_LOGO; // Super (Mod4)
+			else
+				DSCM_ASSERT(0,
+					    "Invalid modifier '~s' in bind sequence: ~s",
+					    scm_take_locale_string(token),
+					    scm_take_locale_string(sequence));
+		} else {
+			/* Parse key, e.g. <sym>, or char */
+			DSCM_ASSERT((length >= 1), "Missing key in bind sequence: ~s",
+				    scm_take_locale_string(sequence));
+
+			if (token[0] == '[') {
+				DSCM_ASSERT((token[length - 1] == ']'),
+					    "Trailing '[' in bind sequence: ~s",
+					    scm_take_locale_string(sequence));
+				DSCM_ASSERT((length >= 3),
+					    "Missing keycode in bind sequence: ~s",
+					    scm_take_locale_string(sequence));
+				key = strndup(&token[1], length - 2);
+				for (char *ptr = key; *ptr != '\0'; ptr++)
+					DSCM_ASSERT(isdigit(*ptr),
+						    "Invalid keycode in bind sequence: ~s",
+						    scm_take_locale_string(sequence));
+				b->key = atoi(key);
+			} else {
+				key = strndup(token, length);
+				SCM keycode = scm_hash_ref(
+					keycodes, scm_from_locale_string(key), SCM_UNDEFINED);
+				/* TODO: Check if key is a mouse button */
+				DSCM_ASSERT((!scm_is_false(keycode)),
+					    "Invalid keycode in bind sequence: ~s",
+					    scm_take_locale_string(sequence));
+				b->key = (xkb_keycode_t)scm_to_uint32(keycode);
+			}
+			free(key);
+		}
+		token = next;
+	}
+	free(cpyorig);
 }
 
 static inline SCM

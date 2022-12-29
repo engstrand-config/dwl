@@ -46,22 +46,6 @@ dscm_binding_shcmd(SCM args)
 }
 
 static inline SCM
-dscm_binding_spawn_menu()
-{
-	Arg a = {.v = menucmd};
-	spawn(&a);
-	return SCM_BOOL_T;
-}
-
-static inline SCM
-dscm_binding_spawn_terminal()
-{
-	Arg a = {.v = termcmd};
-	spawn(&a);
-	return SCM_BOOL_T;
-}
-
-static inline SCM
 dscm_binding_focusstack(SCM value)
 {
 	Arg a = {.i = scm_to_int(value)};
@@ -95,11 +79,10 @@ static inline SCM
 dscm_binding_setlayout(SCM value)
 {
 	char *id = scm_to_locale_string(value);
-	Layout *layout = NULL;
-	for (int i = 0; i < numlayouts; i++) {
-		if (strcmp(layouts[i].id, id) == 0)
-			layout = &layouts[i];
-	}
+	Layout *l, *layout;
+	wl_list_for_each(l, &layouts, link)
+		if (strcmp(l->id, id) == 0)
+			layout = l;
 	if (layout == NULL)
 		return SCM_BOOL_F;
 	Arg a = {.v = layout};
@@ -327,26 +310,30 @@ dscm_binding_set(SCM key, SCM value)
 	dscm_setter_t setter = (dscm_setter_t)scm_to_pointer(scm_cadr(meta));
 	(*setter)(cvar, value);
 
-	SCM reloader = scm_caddr(meta);
-	if (!scm_is_false(reloader)) {
-		dscm_reloader_t func = (dscm_reloader_t)scm_to_pointer(reloader);
-		(*func)();
+	/* When parsing the config for the first time, there is no need to
+	   manually reload the updated configuration parameter, since this
+	   will be done automatically right after.*/
+	if (!firstload) {
+		SCM reloader = scm_caddr(meta);
+		if (!scm_is_false(reloader)) {
+			dscm_reloader_t func = (dscm_reloader_t)scm_to_pointer(reloader);
+			(*func)();
+		}
 	}
 
+	return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_addbinding(SCM list, SCM binding, SCM action)
+{
+	dscm_binding_set(list, scm_list_2(binding, action));
 	return SCM_BOOL_T;
 }
 
 static inline void
 dscm_register()
 {
-	scm_c_define("SHIFT", scm_from_int(WLR_MODIFIER_SHIFT));
-	scm_c_define("CAPS", scm_from_int(WLR_MODIFIER_CAPS));
-	scm_c_define("CTRL", scm_from_int(WLR_MODIFIER_CTRL));
-	scm_c_define("ALT", scm_from_int(WLR_MODIFIER_ALT));
-	scm_c_define("MOD2", scm_from_int(WLR_MODIFIER_MOD2));
-	scm_c_define("MOD3", scm_from_int(WLR_MODIFIER_MOD3));
-	scm_c_define("SUPER", scm_from_int(WLR_MODIFIER_LOGO));
-	scm_c_define("MOD5", scm_from_int(WLR_MODIFIER_MOD5));
 	/* TODO: add bindings for other mouse buttons */
 	scm_c_define("DIRECTION-LEFT", scm_from_int(WLR_DIRECTION_LEFT));
 	scm_c_define("DIRECTION-RIGHT", scm_from_int(WLR_DIRECTION_RIGHT));
@@ -430,8 +417,6 @@ dscm_register()
 	scm_c_define_gsubr("dwl:set-masters", 1, 0, 0, &dscm_binding_incnmaster);
 	scm_c_define_gsubr("dwl:shcmd", 0, 0, 1, &dscm_binding_shcmd);
 	scm_c_define_gsubr("dwl:change-alpha", 1, 0, 0, &dscm_binding_changealpha);
-	scm_c_define_gsubr("dwl:spawn-menu", 0, 0, 0, &dscm_binding_spawn_menu);
-	scm_c_define_gsubr("dwl:spawn-terminal", 0, 0, 0, &dscm_binding_spawn_terminal);
 	scm_c_define_gsubr("dwl:toggle-gaps", 0, 0, 0, &dscm_binding_togglegaps);
 	scm_c_define_gsubr("dwl:default-gaps", 0, 0, 0, &dscm_binding_defaultgaps);
 	scm_c_define_gsubr("dwl:gaps", 1, 0, 0, &dscm_binding_incrgaps);
@@ -445,4 +430,5 @@ dscm_register()
 	/* dwl-guile specific bindings */
 	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_binding_reloadconfig);
 	scm_c_define_gsubr("dwl:set", 2, 0, 0, &dscm_binding_set);
+	scm_c_define_gsubr("dwl:add-binding", 3, 0, 0, &dscm_binding_addbinding);
 }

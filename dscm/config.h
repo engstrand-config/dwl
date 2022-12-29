@@ -23,19 +23,11 @@
 		DSCM_DEFINE_P(CVAR, KEY, SETTER, RELOADER);	\
 	}
 
-#define DSCM_ASSERT(PRED, MSG, ...)					\
-	if (!PRED) scm_misc_error(					\
-		"", MSG, scm_list_n(__VA_ARGS__, SCM_UNDEFINED))
-
-#define DSCM_ASSERT_TYPE(PRED, VALUE, TYPE)				\
-	SCM_ASSERT_TYPE(PRED, VALUE, SCM_ARG2, "", TYPE)
-
-#define DSCM_ASSERT_OPTION(RESULT, KEY)					\
-	if (scm_is_false(RESULT)) scm_misc_error(			\
-		"dwl:set", "Invalid option: '~a", scm_list_1(KEY))
-
 SCM config;
 SCM metadata;
+
+/* Set to 0 after the initial config load */
+static unsigned int firstload = 1;
 
 /* Config variable definitions. */
 /* These will be automatically set from the guile config. */
@@ -60,21 +52,15 @@ static float fullscreen_bg[4] = {0.1, 0.1, 0.1, 1.0};
 static float lockscreen_bg[4] = {0.1, 0.1, 0.1, 1.0};
 
 static char **tags                      = NULL;
-static char **termcmd                   = NULL;
-static char **menucmd                   = NULL;
-static Layout *layouts                  = NULL;
-static MonitorRule *monrules            = NULL;
-static Rule *rules                      = NULL;
-static Key *keys                        = NULL;
-static Button *buttons                  = NULL;
 static struct xkb_rule_names *xkb_rules = NULL;
 
+static struct wl_list keys;
+static struct wl_list buttons;
+static struct wl_list layouts;
+static struct wl_list rules;
+static struct wl_list monrules;
+
 static unsigned int numtags     = 0;
-static unsigned int numkeys     = 0;
-static unsigned int numrules    = 0;
-static unsigned int numlayouts  = 0;
-static unsigned int nummonrules = 0;
-static unsigned int numbuttons  = 0;
 static unsigned int TAGMASK     = 0;
 
 /* Trackpad and mouse */
@@ -103,7 +89,7 @@ static inline void
 setter_uint32(void *cvar, SCM value)
 {
 	DSCM_ASSERT_TYPE(scm_is_integer(value), value, "uint32_t");
-	(*((uint32_t*)cvar)) = scm_to_unsigned_integer(value, 0, UINT32_MAX);
+	(*((uint32_t*)cvar)) = scm_to_uint32(value);
 }
 
 static inline void
@@ -179,6 +165,176 @@ setter_xkb_rules(void *cvar, SCM value)
 	xkb->layout = dscm_alist_get_string(value, "layout");
 	xkb->variant = dscm_alist_get_string(value, "variant");
 	xkb->options = dscm_alist_get_string(value, "options");
+}
+
+static inline void
+setter_binding(void *cvar, SCM id, SCM value)
+{
+	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "list");
+	SCM sequence = scm_car(value);
+	scm_t_bits *action = dscm_get_pointer(scm_cadr(value));
+	DSCM_ASSERT_TYPE(scm_is_string(sequence), sequence, "string");
+
+	Binding tmp, *b;
+	struct wl_list *lst = cvar;
+
+	/* Attempt to parse before any allocation */
+	/* TODO: Use dynwind? */
+	dscm_parse_binding_sequence(&tmp, scm_to_locale_string(sequence));
+
+	wl_list_for_each(b, lst, link) {
+		if (b->key == tmp.key && b->mod == tmp.mod) {
+			b->key = tmp.key;
+			b->mod = tmp.mod;
+			b->action = action;
+			return;
+		}
+	}
+
+	b = calloc(1, sizeof(Binding));
+	b->key = tmp.key;
+	b->mod = tmp.mod;
+	b->action = action;
+	wl_list_insert(lst, &b->link);
+}
+
+static inline void
+setter_layout(void *cvar, SCM value)
+{
+	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "list");
+	char *id = dscm_alist_get_string(value, "id");
+	char *symbol = dscm_alist_get_string(value, "symbol");
+	SCM action = scm_cadr(value);
+
+	DSCM_ASSERT(symbol, "Missing id for layout: ~s", value);
+	DSCM_ASSERT(symbol, "Missing symbol for layout: ~s", value);
+	DSCM_ASSERT_TYPE((scm_is_symbol(action) ||
+			  scm_procedure_p(action) == SCM_BOOL_T),
+			 value, "symbol or procedure");
+
+	Layout *l;
+	struct wl_list *lst = cvar;
+	wl_list_for_each(l, lst, link) {
+		if (!strcmp(l->id, id)) {
+			free(l->symbol);
+			free(id);
+			l->arrange = dscm_get_pointer(action);
+			l->symbol = symbol;
+			return;
+		}
+	}
+
+	/* not found */
+	l = calloc(1, sizeof(Layout));
+	l->id = id;
+	l->symbol = symbol;
+	l->arrange = dscm_get_pointer(action);
+	wl_list_insert(lst, &l->link);
+}
+
+static inline void
+setter_rule(void *cvar, SCM value)
+{
+	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "alist");
+	char *id = dscm_alist_get_string(value, "id");
+	char *title = dscm_alist_get_string(value, "title");
+
+	DSCM_ASSERT(id || title, "Missing id and/or title in rule: ~s", value);
+
+	Rule *r;
+	int found = 0;
+	struct wl_list *lst = cvar;
+	SCM tags = dscm_alist_get(value, "tag");
+	SCM isfloating = dscm_alist_get(value, "is-floating");
+	SCM monitor = dscm_alist_get(value, "monitor");
+	SCM alpha = dscm_alist_get(value, "alpha");
+
+	DSCM_ASSERT_TYPE(scm_is_unsigned_integer(tags, 0, UINT_MAX),
+			 tags, "unsigned int");
+	DSCM_ASSERT_TYPE(scm_is_integer(isfloating), tags, "int");
+	DSCM_ASSERT_TYPE(scm_is_integer(monitor), tags, "int");
+	DSCM_ASSERT_TYPE(scm_is_number(alpha), tags, "double");
+
+	wl_list_for_each(r, lst, link) {
+		if ((id && !strcmp(r->id, id)) && (title && !strcmp(r->title, title))) {
+			found = 1;
+			if (id) free(id);
+			if (title) free(title);
+			break;
+		}
+	}
+
+	if (!found) {
+		r = calloc(1, sizeof(Rule));
+		r->id = id;
+		r->title = title;
+		wl_list_insert(lst, &r->link);
+	}
+
+	r->tags = scm_to_unsigned_integer(tags, 0, UINT_MAX);
+	r->isfloating = scm_to_int(isfloating);
+	r->monitor = scm_to_int(monitor);
+	r->alpha = scm_to_double(alpha);
+}
+
+static inline void
+setter_monrule(void *cvar, SCM value)
+{
+	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "alist");
+	MonitorRule *r;
+	int found = 0;
+	struct wl_list *lst = cvar;
+	char *name = dscm_alist_get_string(value, "name");
+	SCM mfact = dscm_alist_get(value, "master-factor");
+	SCM nmaster = dscm_alist_get(value, "masters");
+	SCM scale = dscm_alist_get(value, "scale");
+	SCM lt = dscm_alist_get(value, "layout");
+	SCM rr = dscm_alist_get(value, "transform");
+	SCM x = dscm_alist_get(value, "x");
+	SCM y = dscm_alist_get(value, "y");
+
+	/* TODO: add function for getting value and asserting type */
+	/* DSCM_ASSERT_TYPE(scm_is_unsigned_integer(tags, 0, UINT_MAX),
+	   tags, "unsigned int"); */
+	/* DSCM_ASSERT_TYPE(scm_is_float(mfact), mfact, "float"); */
+	/* DSCM_ASSERT_TYPE(scm_is_float(scale), scale, "float"); */
+	/* DSCM_ASSERT_TYPE(scm_is_symbol(rr), rr, "symbol"); */
+	/* DSCM_ASSERT_TYPE(scm_is_symbol(lt), lt, "symbol"); */
+	/* DSCM_ASSERT_TYPE(scm_is_integer(nmaster), nmaster, "int"); */
+	/* DSCM_ASSERT_TYPE(scm_is_integer(x), x, "int"); */
+	/* DSCM_ASSERT_TYPE(scm_is_integer(y), y, "int"); */
+
+	wl_list_for_each(r, lst, link) {
+		if (!strcmp(r->name, name)) {
+			found = 1;
+			free(name);
+			break;
+		}
+	}
+
+	if (!found) {
+		r = calloc(1, sizeof(MonitorRule));
+		r->name = name;
+		wl_list_insert(lst, &r->link);
+	}
+
+	r->mfact = (float)scm_to_double(mfact);
+	r->scale = (float)scm_to_double(scale);
+	r->nmaster = scm_to_int(nmaster);
+	/* TODO: Fix layout type, should be a ref to Layout struct */
+	/* r->lt = */
+	if (!scm_is_false(rr)) {
+		SCM rreval = scm_primitive_eval(rr);
+		/* DSCM_ASSERT_TYPE(scm_is_integer(rreval), rreval, "int"); */
+		r->rr = scm_to_int(rreval);
+	}
+	r->x = scm_to_int(x);
+	r->y = scm_to_int(y);
+}
+static inline void
+dscm_parse_string(unsigned int index, SCM str, void *data)
+{
+       ((char**)data)[index] = scm_to_locale_string(str);
 }
 
 static inline void
@@ -263,90 +419,75 @@ reload_keyboard_repeat_info()
 {
 	Keyboard *kb;
 	wl_list_for_each(kb, &keyboards, link)
-		wlr_keyboard_set_repeat_info(kb->wlr_keyboard, repeat_rate,
-					     repeat_delay);
+		wlr_keyboard_set_repeat_info(
+			kb->wlr_keyboard, repeat_rate, repeat_delay);
 }
 
 static inline void
-dscm_config_cleanup()
+reload_layouts()
+{
+
+}
+
+static inline void
+reload_rules()
 {}
 
 static inline void
-dscm_parse_string(unsigned int index, SCM str, void *data)
-{
-	((char**)data)[index] = scm_to_locale_string(str);
-}
+reload_monrules()
+{}
 
 static inline void
-dscm_parse_layout(unsigned int index, SCM layout, void *data)
+dscm_config_load()
 {
-	((Layout*)data)[index] = (Layout){
-		.id = dscm_alist_get_string(layout, "id"),
-		.symbol = dscm_alist_get_string(layout, "symbol"),
-		.arrange = dscm_alist_get_proc_pointer(layout, "arrange")
-	};
-}
-
-static inline void
-dscm_parse_monitor_rule(unsigned int index, SCM rule, void *data)
-{
-	enum wl_output_transform rr = scm_to_int(dscm_alist_get_eval(rule, "transform"));
-	((MonitorRule*)data)[index] = (MonitorRule){
-		.name = dscm_alist_get_string(rule, "name"),
-		.mfact = dscm_alist_get_float(rule, "master-factor"),
-		.nmaster = dscm_alist_get_int(rule, "masters"),
-		.scale = dscm_alist_get_float(rule, "scale"),
-		.lt = &layouts[dscm_alist_get_int(rule, "layout")],
-		.rr = rr,
-		.x = dscm_alist_get_int(rule, "x"),
-		.y = dscm_alist_get_int(rule, "y"),
-	};
-}
-
-static inline void
-dscm_parse_rule(unsigned int index, SCM rule, void *data)
-{
-	((Rule*)data)[index] = (Rule){
-		.id = dscm_alist_get_string(rule, "id"),
-		.title = dscm_alist_get_string(rule, "title"),
-		.tags = dscm_alist_get_unsigned_int(rule, "tag", -1),
-		.isfloating = dscm_alist_get_int(rule, "floating"),
-		.monitor = dscm_alist_get_int(rule, "monitor"),
-		.alpha = dscm_alist_get_double(rule, "alpha")
-	};
-}
-
-static inline void
-dscm_parse_key(unsigned int index, SCM key, void *data)
-{
-	xkb_keycode_t keycode = dscm_alist_get_unsigned_int(key, "key", -1);
-	/* Should we use `xkb_keycode_is_legal_x11`? */
-	if (!xkb_keycode_is_legal_x11(keycode)
-	    || !xkb_keycode_is_legal_ext(keycode))
-		die("dscm: keycode '%d' is not a legal keycode\n", keycode);
-	((Key*)data)[index] = (Key){
-		.mod = dscm_alist_get_modifiers(key, "modifiers"),
-		.keycode = keycode,
-		.func = dscm_alist_get_proc_pointer(key, "action")
-	};
-}
-
-static inline void
-dscm_parse_button(unsigned int index, SCM button, void *data)
-{
-	unsigned int key = scm_to_unsigned_integer(
-		dscm_alist_get_eval(button, "button"), 0, -1);
-	((Button*)data)[index] = (Button){
-		.mod = dscm_alist_get_modifiers(button, "modifiers"),
-		.button = key,
-		.func = dscm_alist_get_proc_pointer(button, "action")
-	};
+	scm_c_primitive_load(config_file);
+	config = dscm_get_variable("config");
+	tags = dscm_iterate_list(dscm_alist_get(config, "tags"),
+				 sizeof(char*), 0, &dscm_parse_string, &numtags);
+	TAGMASK = ((1 << numtags) - 1);
+	firstload = 0;
 }
 
 static inline void
 dscm_config_initialize()
 {
+	wl_list_init(&keys);
+	wl_list_init(&buttons);
+	wl_list_init(&layouts);
+	wl_list_init(&rules);
+	wl_list_init(&monrules);
+
+	/* TODO: Insert required default layout and monitor rule */
+	const char *id = "tile";
+	const char *symbol = "[]=";
+	Layout *l = calloc(1, sizeof(Layout));
+	l->id = strdup("tile");
+	l->symbol = strdup("[]=");
+	l->arrange = dscm_get_pointer(
+		scm_string_to_symbol(scm_from_locale_string("dwl:tile")));
+	wl_list_insert(&layouts, &l->link);
+
+	MonitorRule *r = calloc(1, sizeof(MonitorRule));
+	r->name = NULL;
+	r->mfact = 0.55;
+	r->scale = 1;
+	r->lt = l;
+	r->rr = WL_OUTPUT_TRANSFORM_NORMAL;
+	r->x = 0;
+	r->y = 0;
+	wl_list_insert(&monrules, &r->link);
+
+	Binding *b = calloc(1, sizeof(MonitorRule));
+	b->key = 36;
+	b->mod |= WLR_MODIFIER_LOGO;
+	b->action = dscm_get_pointer(scm_c_eval_string("(lambda () (dwl:spawn \"foot\"))"));
+	wl_list_insert(&keys, &b->link);
+
 	metadata = scm_make_hash_table(scm_from_int(1));
+
+	/* Populate keycode hash table */
+	dscm_keycodes_initialize();
+
 	DSCM_DEFINE (borderpx, "border-px", 1, &setter_uint, &reload_borderpx);
 	DSCM_DEFINE (sloppyfocus, "sloppy-focus", 1, &setter_uint, NULL);
 	DSCM_DEFINE (gappih, "gap-ih", 0, &setter_uint, &reload_gaps);
@@ -370,7 +511,8 @@ dscm_config_initialize()
 	DSCM_DEFINE (tap_and_drag, "tap-and-drag", 1, &setter_uint, &reload_inputdevice);
 	DSCM_DEFINE (drag_lock, "drag-lock", 1, &setter_uint, &reload_inputdevice);
 	DSCM_DEFINE (left_handed, "left-handed", 0, &setter_uint, &reload_inputdevice);
-	DSCM_DEFINE (accel_speed, "accel-speed", 0.0, &setter_double, &reload_inputdevice);
+	DSCM_DEFINE (accel_speed, "accel-speed", 0.0,
+		     &setter_double, &reload_inputdevice);
 	DSCM_DEFINE (natural_scrolling, "natural-scrolling", 0,
 		     &setter_uint, &reload_inputdevice);
 	DSCM_DEFINE (disable_while_typing, "disable-while-typing", 1,
@@ -399,25 +541,13 @@ dscm_config_initialize()
 	DSCM_DEFINE_P (lockscreen_bg, "lockscreen-color",
 		       &setter_color, &reload_lockscreen_bg);
 
-	scm_c_primitive_load(config_file);
-
-	config = dscm_get_variable("config");
-
-	tags = dscm_iterate_list(dscm_alist_get(config, "tags"),
-				 sizeof(char*), 0, &dscm_parse_string, &numtags);
-	termcmd = dscm_iterate_list(dscm_alist_get(config, "terminal"),
-				    sizeof(char*), 1, &dscm_parse_string, NULL);
-	menucmd = dscm_iterate_list(dscm_alist_get(config, "menu"),
-				    sizeof(char*), 1, &dscm_parse_string, NULL);
-	layouts = dscm_iterate_list(dscm_alist_get(config, "layouts"),
-				    sizeof(Layout), 0, &dscm_parse_layout, &numlayouts);
-	rules = dscm_iterate_list(dscm_alist_get(config, "rules"),
-				  sizeof(Rule), 0, &dscm_parse_rule, &numrules);
-	monrules = dscm_iterate_list(dscm_alist_get(config, "monitor-rules"),
-				     sizeof(MonitorRule), 0, &dscm_parse_monitor_rule, &nummonrules);
-	keys = dscm_iterate_list(dscm_alist_get(config, "keys"),
-				 sizeof(Key), 0, &dscm_parse_key, &numkeys);
-	buttons = dscm_iterate_list(dscm_alist_get(config, "buttons"),
-				    sizeof(Button), 0, &dscm_parse_button, &numbuttons);
-	TAGMASK = ((1 << numtags) - 1);
+	DSCM_DEFINE_P (keys, "keys", &setter_binding, NULL);
+	DSCM_DEFINE_P (buttons, "buttons", &setter_binding, NULL);
+	DSCM_DEFINE_P (layouts, "layouts", &setter_layout, &reload_layouts);
+	DSCM_DEFINE_P (layouts, "rules", &setter_rule, &reload_rules);
+	DSCM_DEFINE_P (layouts, "monrules", &setter_monrule, &reload_monrules);
 }
+
+static inline void
+dscm_config_cleanup()
+{}
