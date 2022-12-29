@@ -153,24 +153,34 @@ dscm_modify_list(SCM list, void *target, void (*iterator)(unsigned int, SCM, voi
 static inline void
 dscm_parse_binding_sequence(Binding *b, char *sequence)
 {
-	DSCM_ASSERT((!wl_list_empty(&keyboards)),
-		    "No keyboard available, failed to set key: ~s",
-		    scm_take_locale_string(sequence));
+	char *token, *next, *key, *ptr;
+	if ((key = strpbrk(sequence, "<"))) {
+		SCM keycode = scm_hash_ref(
+			keycodes, scm_from_locale_string(key), SCM_UNDEFINED);
+		DSCM_ASSERT((!scm_is_false(keycode)),
+			    "Invalid keysym in bind sequence: ~s",
+			    scm_from_locale_string(sequence));
+		b->key = (xkb_keycode_t)scm_to_uint32(keycode);
+	} else if ((key = strpbrk(sequence, "["))) {
+		for (ptr = &key[1]; !(*ptr == '\0' || *ptr == ']'); ptr++)
+			DSCM_ASSERT(isdigit(*ptr),
+				    "Invalid keycode in bind sequence: ~s",
+				    scm_from_locale_string(sequence));
+		DSCM_ASSERT((*ptr == ']'), "Trailing ']' in bind sequence: ~s",
+			    scm_from_locale_string(sequence));
+		*ptr = '\0';
+		b->key = atoi(&key[1]);
+	}
 
-	/* strtok modifies the string passed into it, and the raw binding
-	   string will be used in the future. */
-	int length, hastoken = 0;
-	char *cpyorig = NULL, *next = NULL, *key = NULL;
-	char *cpy = cpyorig = strdup(sequence), *token = strtok(cpy, "-");
+	/* Replace < or [ with NULL to make sure that it is not included
+	   when parsing the modifiers. */
+	if (key != NULL)
+		key[0] = '\0';
+
 	b->mod = 0;
-
+	token = strtok_r(sequence, "-", &sequence);
 	while (token) {
-		length = strlen(token);
-		if ((next = strtok(NULL, "-"))) {
-			/* Parse modifier */
-			DSCM_ASSERT((length == 1),
-				    "Invalid modifier in bind sequence: ~s",
-				    scm_take_locale_string(sequence));
+		if ((next = strtok_r(sequence, "-", &sequence)) || key != NULL) {
 			if (!strcmp(token, "C"))
 				b->mod |= WLR_MODIFIER_CTRL;
 			else if (!strcmp(token, "M"))
@@ -182,41 +192,18 @@ dscm_parse_binding_sequence(Binding *b, char *sequence)
 			else
 				DSCM_ASSERT(0,
 					    "Invalid modifier '~s' in bind sequence: ~s",
-					    scm_take_locale_string(token),
-					    scm_take_locale_string(sequence));
+					    scm_from_locale_string(token),
+					    scm_from_locale_string(sequence));
 		} else {
-			/* Parse key, e.g. <sym>, or char */
-			DSCM_ASSERT((length >= 1), "Missing key in bind sequence: ~s",
-				    scm_take_locale_string(sequence));
-
-			if (token[0] == '[') {
-				DSCM_ASSERT((token[length - 1] == ']'),
-					    "Trailing '[' in bind sequence: ~s",
-					    scm_take_locale_string(sequence));
-				DSCM_ASSERT((length >= 3),
-					    "Missing keycode in bind sequence: ~s",
-					    scm_take_locale_string(sequence));
-				key = strndup(&token[1], length - 2);
-				for (char *ptr = key; *ptr != '\0'; ptr++)
-					DSCM_ASSERT(isdigit(*ptr),
-						    "Invalid keycode in bind sequence: ~s",
-						    scm_take_locale_string(sequence));
-				b->key = atoi(key);
-			} else {
-				key = strndup(token, length);
-				SCM keycode = scm_hash_ref(
-					keycodes, scm_from_locale_string(key), SCM_UNDEFINED);
-				/* TODO: Check if key is a mouse button */
-				DSCM_ASSERT((!scm_is_false(keycode)),
-					    "Invalid keycode in bind sequence: ~s",
-					    scm_take_locale_string(sequence));
-				b->key = (xkb_keycode_t)scm_to_uint32(keycode);
-			}
-			free(key);
+			SCM keycode = scm_hash_ref(
+				keycodes, scm_from_locale_string(token), SCM_UNDEFINED);
+			DSCM_ASSERT((!scm_is_false(keycode)),
+				    "Invalid keysym in bind sequence: ~s",
+				    scm_from_locale_string(sequence));
+			b->key = (xkb_keycode_t)scm_to_uint32(keycode);
 		}
 		token = next;
 	}
-	free(cpyorig);
 }
 
 static inline SCM
