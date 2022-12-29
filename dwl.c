@@ -1978,6 +1978,7 @@ quitsignal(int signo)
 
 void
 reloadconfig() {
+	dscm_config_load();
 	/* Client *c; */
 	/* Monitor *m; */
 	/* float *color; */

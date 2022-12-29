@@ -5,7 +5,7 @@ static inline void
 dscm_keycodes_initialize()
 {
 	keycodes = scm_make_hash_table(scm_from_int(230));
-	scm_hash_set_x(keycodes, scm_from_locale_string("Escape"), scm_from_int(9));
+	scm_hash_set_x(keycodes, scm_from_locale_string("<escape>"), scm_from_int(9));
 	scm_hash_set_x(keycodes, scm_from_locale_string("1"), scm_from_int(10));
 	scm_hash_set_x(keycodes, scm_from_locale_string("2"), scm_from_int(11));
 	scm_hash_set_x(keycodes, scm_from_locale_string("3"), scm_from_int(12));
@@ -217,4 +217,7 @@ dscm_keycodes_initialize()
 	scm_hash_set_x(keycodes, scm_from_locale_string("<XF86MonBrightnessCycle>"), scm_from_int(251));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<XF86WWAN>"), scm_from_int(254));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<XF86RFKill>"), scm_from_int(255));
+	scm_hash_set_x(keycodes, scm_from_locale_string("<mouse-left>"), scm_from_int(BTN_LEFT));
+	scm_hash_set_x(keycodes, scm_from_locale_string("<mouse-middle>"), scm_from_int(BTN_MIDDLE));
+	scm_hash_set_x(keycodes, scm_from_locale_string("<mouse-right>"), scm_from_int(BTN_RIGHT));
 }

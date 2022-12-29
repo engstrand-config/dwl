@@ -337,9 +337,6 @@ dscm_register()
 	/* TODO: add bindings for other mouse buttons */
 	scm_c_define("DIRECTION-LEFT", scm_from_int(WLR_DIRECTION_LEFT));
 	scm_c_define("DIRECTION-RIGHT", scm_from_int(WLR_DIRECTION_RIGHT));
-	scm_c_define("MOUSE-LEFT", scm_from_int(BTN_LEFT));
-	scm_c_define("MOUSE-MIDDLE", scm_from_int(BTN_MIDDLE));
-	scm_c_define("MOUSE-RIGHT", scm_from_int(BTN_RIGHT));
 	scm_c_define("TRANSFORM-NORMAL",
 		     scm_from_int(WL_OUTPUT_TRANSFORM_NORMAL));
 	scm_c_define("TRANSFORM-ROTATE-90",
@@ -394,7 +391,7 @@ dscm_register()
 	/* dwl bindings */
 	scm_c_define_gsubr("dwl:chvt", 1, 0, 0, &dscm_binding_chvt);
 	scm_c_define_gsubr("dwl:quit", 0, 0, 0, &dscm_binding_quit);
-	scm_c_define_gsubr("dwl:killclient", 0, 0, 0, &dscm_binding_killclient);
+	scm_c_define_gsubr("dwl:kill-client", 0, 0, 0, &dscm_binding_killclient);
 	scm_c_define_gsubr("dwl:tile", 1, 0, 0, &dscm_binding_tile);
 	scm_c_define_gsubr("dwl:monocle", 1, 0, 0, &dscm_binding_monocle);
 	scm_c_define_gsubr("dwl:spawn", 0, 0, 1, &dscm_binding_spawn);
@@ -429,6 +426,6 @@ dscm_register()
 
 	/* dwl-guile specific bindings */
 	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_binding_reloadconfig);
-	scm_c_define_gsubr("dwl:set", 2, 0, 0, &dscm_binding_set);
-	scm_c_define_gsubr("dwl:add-binding", 3, 0, 0, &dscm_binding_addbinding);
+	scm_c_define_gsubr("set", 2, 0, 0, &dscm_binding_set);
+	scm_c_define_gsubr("add-binding", 3, 0, 0, &dscm_binding_addbinding);
 }
