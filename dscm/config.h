@@ -201,16 +201,9 @@ setter_binding(void *cvar, SCM id, SCM value)
 static inline void
 setter_layout(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "list");
-	char *id = dscm_alist_get_string(value, "id");
-	char *symbol = dscm_alist_get_string(value, "symbol");
-	SCM action = scm_cadr(value);
-
-	DSCM_ASSERT(symbol, "Missing id for layout: ~s", value);
-	DSCM_ASSERT(symbol, "Missing symbol for layout: ~s", value);
-	DSCM_ASSERT_TYPE((scm_is_symbol(action) ||
-			  scm_procedure_p(action) == SCM_BOOL_T),
-			 value, "symbol or procedure");
+	char *id = scm_to_locale_string(scm_symbol_to_string(scm_car(value)));
+	char *symbol = scm_to_locale_string(scm_cadr(value));
+	SCM action = scm_caddr(value);
 
 	Layout *l;
 	struct wl_list *lst = cvar;
@@ -218,8 +211,8 @@ setter_layout(void *cvar, SCM value)
 		if (!strcmp(l->id, id)) {
 			free(l->symbol);
 			free(id);
-			l->arrange = dscm_get_pointer(action);
 			l->symbol = symbol;
+			l->arrange = dscm_get_pointer(action);
 			return;
 		}
 	}
@@ -285,10 +278,11 @@ setter_monrule(void *cvar, SCM value)
 	int found = 0;
 	struct wl_list *lst = cvar;
 	char *name = dscm_alist_get_string(value, "name");
+	char *lt = scm_to_locale_string(scm_symbol_to_string(dscm_alist_get(value, "layout")));
+
 	SCM mfact = dscm_alist_get(value, "master-factor");
 	SCM nmaster = dscm_alist_get(value, "masters");
 	SCM scale = dscm_alist_get(value, "scale");
-	SCM lt = dscm_alist_get(value, "layout");
 	SCM rr = dscm_alist_get(value, "transform");
 	SCM x = dscm_alist_get(value, "x");
 	SCM y = dscm_alist_get(value, "y");
@@ -305,9 +299,9 @@ setter_monrule(void *cvar, SCM value)
 	/* DSCM_ASSERT_TYPE(scm_is_integer(y), y, "int"); */
 
 	wl_list_for_each(r, lst, link) {
-		if (!strcmp(r->name, name)) {
+		if ((r->name == NULL && name == NULL) || (r->name && name && !strcmp(r->name, name))) {
 			found = 1;
-			free(name);
+			if (name != NULL) free(name);
 			break;
 		}
 	}
@@ -318,18 +312,34 @@ setter_monrule(void *cvar, SCM value)
 		wl_list_insert(lst, &r->link);
 	}
 
-	r->mfact = (float)scm_to_double(mfact);
-	r->scale = (float)scm_to_double(scale);
-	r->nmaster = scm_to_int(nmaster);
-	/* TODO: Fix layout type, should be a ref to Layout struct */
-	/* r->lt = */
+	if (!scm_is_false(mfact))
+		r->mfact = (float)scm_to_double(mfact);
+	if (!scm_is_false(scale))
+		r->scale = (float)scm_to_double(scale);
+	if (!scm_is_false(nmaster))
+		r->nmaster = scm_to_int(nmaster);
+	if (!scm_is_false(x))
+		r->x = scm_to_int(x);
+	if (!scm_is_false(y))
+		r->y = scm_to_int(y);
 	if (!scm_is_false(rr)) {
 		SCM rreval = scm_primitive_eval(rr);
-		/* DSCM_ASSERT_TYPE(scm_is_integer(rreval), rreval, "int"); */
+		DSCM_ASSERT_TYPE(scm_is_integer(rreval), rreval, "int");
 		r->rr = scm_to_int(rreval);
 	}
-	r->x = scm_to_int(x);
-	r->y = scm_to_int(y);
+
+	if (lt != NULL) {
+		Layout *l;
+		wl_list_for_each(l, &layouts, link) {
+			if (!strcmp(l->id, lt)) {
+				free(lt);
+				r->lt = l;
+				break;
+			}
+		}
+		DSCM_ASSERT((r->lt != NULL),
+			    "Invalid layout reference in monitor rule: ~a", value);
+	}
 }
 static inline void
 dscm_parse_string(unsigned int index, SCM str, void *data)
@@ -442,7 +452,7 @@ dscm_config_load()
 {
 	scm_c_primitive_load(config_file);
 	config = dscm_get_variable("config");
-	tags = dscm_iterate_list(dscm_alist_get(config, "tags"),
+	tags = dscm_iterate_list(scm_assoc_ref(config, scm_from_locale_string("tags")),
 				 sizeof(char*), 0, &dscm_parse_string, &numtags);
 	TAGMASK = ((1 << numtags) - 1);
 	firstload = 0;
@@ -457,7 +467,6 @@ dscm_config_initialize()
 	wl_list_init(&rules);
 	wl_list_init(&monrules);
 
-	/* TODO: Insert required default layout and monitor rule */
 	const char *id = "tile";
 	const char *symbol = "[]=";
 	Layout *l = calloc(1, sizeof(Layout));
@@ -469,6 +478,7 @@ dscm_config_initialize()
 
 	MonitorRule *r = calloc(1, sizeof(MonitorRule));
 	r->name = NULL;
+	r->nmaster = 1;
 	r->mfact = 0.55;
 	r->scale = 1;
 	r->lt = l;
@@ -476,12 +486,6 @@ dscm_config_initialize()
 	r->x = 0;
 	r->y = 0;
 	wl_list_insert(&monrules, &r->link);
-
-	Binding *b = calloc(1, sizeof(MonitorRule));
-	b->key = 36;
-	b->mod |= WLR_MODIFIER_LOGO;
-	b->action = dscm_get_pointer(scm_c_eval_string("(lambda () (dwl:spawn \"foot\"))"));
-	wl_list_insert(&keys, &b->link);
 
 	metadata = scm_make_hash_table(scm_from_int(1));
 

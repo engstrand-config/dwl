@@ -1180,28 +1180,14 @@ cursorframe(struct wl_listener *listener, void *data)
 void
 cyclelayout(const Arg *arg)
 {
-	if (wl_list_empty(&layouts))
-	    return;
-
 	Layout *l;
-	unsigned int index = 0;
-	wl_list_for_each(l, &layouts, link) {
-		if (l == selmon->lt[selmon->sellt])
-			break;
-		index++;
-	}
-	/* TODO: Use wl_container_of */
-	if (arg->i > 0) {
-		if (l->link.next != NULL)
-			setlayout(&((Arg) {.v = &(l->link.next)}));
-		else
-			setlayout(&((Arg) {.v = &(layouts.next)}));
-	} else {
-		if (index > 0)
-			setlayout(&((Arg) {.v = &(l->link.prev)}));
-		else
-			setlayout(&((Arg) {.v = &(layouts.prev)}));
-	}
+	if (!selmon || !(l = (Layout*)selmon->lt[selmon->sellt]))
+	    return;
+	struct wl_list *next = arg->i > 0 ? l->link.next : l->link.prev;
+	/* Do not include sentinel nodes */
+	if (next == &layouts)
+		next = arg->i > 0 ? layouts.next : layouts.prev;
+	setlayout(&((Arg) {.v = wl_container_of(next, l, link)}));
 }
 
 void

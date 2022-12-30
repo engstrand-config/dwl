@@ -29,7 +29,7 @@ typedef void(*dscm_setter_t)(void*, SCM);
 static inline SCM
 dscm_alist_get(SCM alist, const char* key)
 {
-	return scm_assoc_ref(alist, scm_from_utf8_string(key));
+	return scm_assoc_ref(alist, scm_string_to_symbol(scm_from_locale_string(key)));
 }
 
 static inline char*

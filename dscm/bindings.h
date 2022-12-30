@@ -324,10 +324,43 @@ dscm_binding_set(SCM key, SCM value)
 	return SCM_BOOL_T;
 }
 
+/* TODO: Remove list argument */
 static inline SCM
-dscm_binding_addbinding(SCM list, SCM binding, SCM action)
+dscm_binding_bind(SCM list, SCM sequence, SCM action)
 {
-	dscm_binding_set(list, scm_list_2(binding, action));
+	DSCM_ASSERT_TYPE(scm_is_symbol(list), list, "symbol");
+	DSCM_ASSERT_TYPE(scm_is_string(sequence), sequence, "string");
+	DSCM_ASSERT_TYPE((scm_is_symbol(action) ||
+			  scm_procedure_p(action) == SCM_BOOL_T),
+			 action, "symbol or procedure");
+	dscm_binding_set(list, scm_list_2(sequence, action));
+	return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_setlayouts(SCM id, SCM symbol, SCM arrange)
+{
+	DSCM_ASSERT_TYPE(scm_is_symbol(id), id, "symbol");
+	DSCM_ASSERT_TYPE(scm_is_string(symbol), symbol, "string");
+	DSCM_ASSERT_TYPE(scm_is_symbol(arrange), arrange, "symbol");
+	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("layouts")),
+			 scm_list_3(id, symbol, arrange));
+	return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_setrules(SCM rule)
+{
+	DSCM_ASSERT_TYPE((scm_list_p(rule) == SCM_BOOL_T), rule, "alist");
+	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("rules")), rule);
+	return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_setmonrules(SCM rule)
+{
+	DSCM_ASSERT_TYPE((scm_list_p(rule) == SCM_BOOL_T), rule, "alist");
+	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("monrules")), rule);
 	return SCM_BOOL_T;
 }
 
@@ -427,5 +460,8 @@ dscm_register()
 	/* dwl-guile specific bindings */
 	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_binding_reloadconfig);
 	scm_c_define_gsubr("set", 2, 0, 0, &dscm_binding_set);
-	scm_c_define_gsubr("add-binding", 3, 0, 0, &dscm_binding_addbinding);
+	scm_c_define_gsubr("bind", 3, 0, 0, &dscm_binding_bind);
+	scm_c_define_gsubr("set-layouts", 3, 0, 0, &dscm_binding_setlayouts);
+	scm_c_define_gsubr("set-rules", 1, 0, 0, &dscm_binding_setrules);
+	scm_c_define_gsubr("set-monitor-rules", 1, 0, 0, &dscm_binding_setmonrules);
 }
