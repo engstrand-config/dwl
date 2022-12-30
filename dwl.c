@@ -330,7 +330,6 @@ static void pointerfocus(Client *c, struct wlr_surface *surface,
 static void printstatus(void);
 static void quit(const Arg *arg);
 static void quitsignal(int signo);
-static void reloadconfig();
 static void rendermon(struct wl_listener *listener, void *data);
 static void requeststartdrag(struct wl_listener *listener, void *data);
 static void resize(Client *c, struct wlr_box geo, int interact, int draw_borders);
@@ -1963,36 +1962,6 @@ quitsignal(int signo)
 }
 
 void
-reloadconfig() {
-	dscm_config_load();
-	/* Client *c; */
-	/* Monitor *m; */
-	/* float *color; */
-	/* scm_c_primitive_load(config_file); */
-
-	/* /\* Redraw clients *\/ */
-	/* wl_list_for_each(c, &clients, link) { */
-	/*	if (c->bw > 0) */
-	/*		c->bw = borderpx; */
-	/*	color = focustop(selmon) == c ? focuscolor : bordercolor; */
-	/*	resize(c, c->geom, 0, c->bw); */
-	/*	for (int i = 0; i < 4; i++) */
-	/*		wlr_scene_rect_set_color(c->border[i], color); */
-	/* } */
-
-	/* /\* Rearrange clients on all monitors *\/ */
-	/* wl_list_for_each(m, &mons, link) { */
-	/*	defaultgaps(NULL); */
-	/*	arrange(m); */
-	/* } */
-
-	/* wlr_scene_rect_set_color(locked_bg, lockscreen_bg); */
-
-	/* /\* Send events to observing clients, notifying of possible changes *\/ */
-	/* dscm_sendevents(); */
-}
-
-void
 rendermon(struct wl_listener *listener, void *data)
 {
 	/* This function is called every time an output is ready to display a frame,
@@ -3130,8 +3099,17 @@ dscm_printstatusmon(Monitor *m, const DscmMonitor *mon)
 		dscm_monitor_v1_send_tag(mon->resource, tag, state,
 					 numclients, focusedclient);
 	}
+
 	/* TODO: Send id instead? */
-	/* dscm_monitor_v1_send_layout(mon->resource, m->lt[m->sellt] - layouts); */
+	Layout *l;
+	unsigned int index = 0;
+	wl_list_for_each(l, &layouts, link)
+		if (l == m->lt[m->sellt])
+			break;
+		else
+			index++;
+
+	dscm_monitor_v1_send_layout(mon->resource, index);
 	dscm_monitor_v1_send_title(mon->resource, focused ?
 				   client_get_title(focused) : "");
 	dscm_monitor_v1_send_frame(mon->resource);
@@ -3170,7 +3148,6 @@ void
 dscm_setlayout(struct wl_client *client, struct wl_resource *resource,
 	       uint32_t layout)
 {
-	/* TODO */
 	/* DscmMonitor *mon; */
 	/* Monitor *m; */
 	/* mon = wl_resource_get_user_data(resource); */

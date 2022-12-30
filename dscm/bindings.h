@@ -458,7 +458,7 @@ dscm_register()
 	scm_c_define_gsubr("dwl:gaps-outer-vertical", 1, 0, 0, &dscm_binding_incrovgaps);
 
 	/* dwl-guile specific bindings */
-	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_binding_reloadconfig);
+	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_config_load);
 	scm_c_define_gsubr("set", 2, 0, 0, &dscm_binding_set);
 	scm_c_define_gsubr("bind", 3, 0, 0, &dscm_binding_bind);
 	scm_c_define_gsubr("set-layouts", 3, 0, 0, &dscm_binding_setlayouts);

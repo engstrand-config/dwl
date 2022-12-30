@@ -146,9 +146,36 @@ setter_color(void *cvar, SCM value)
 }
 
 static inline void
+setter_tags(void *cvar, SCM value)
+{
+	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "list");
+	DSCM_ASSERT(!scm_is_null(value),
+		    "Invalid tag list, there must be at least one tag: ~a", value);
+	unsigned int length = scm_to_unsigned_integer(scm_length(value), 0, UINT_MAX);
+	char **newtags = calloc(length, sizeof(char*));
+	for (size_t i = 0; i < length; i++) {
+		SCM ref = scm_list_ref(value, scm_from_int(i));
+		DSCM_ASSERT(scm_is_string(ref),
+			    "Invalid tag ~s, expected string: ~a", ref, value);
+		newtags[i] = scm_to_locale_string(ref);
+	}
+
+	char **tmp = tags, **end = tags + numtags;
+	tags = newtags;
+	numtags = length;
+	TAGMASK = ((1 << numtags) - 1);
+
+	if (tmp != NULL) {
+		for (char **ptr = tmp; ptr < end; ptr++)
+			free(*ptr);
+		free(tmp);
+	}
+}
+
+static inline void
 setter_xkb_rules(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE(scm_list(value), value, "alist");
+	DSCM_ASSERT_TYPE(scm_list_p(value) == SCM_BOOL_T, value, "alist");
 	struct xkb_rule_names *xkb = (*((struct xkb_rule_names**)cvar));
 	if (xkb) {
 		if (xkb->rules) free((char*)xkb->rules);
@@ -435,9 +462,7 @@ reload_keyboard_repeat_info()
 
 static inline void
 reload_layouts()
-{
-
-}
+{}
 
 static inline void
 reload_rules()
@@ -448,13 +473,15 @@ reload_monrules()
 {}
 
 static inline void
+reload_tags()
+{
+	/* TODO: Move clients to new tag if the tag they were on have been removed */
+}
+
+static inline void
 dscm_config_load()
 {
 	scm_c_primitive_load(config_file);
-	config = dscm_get_variable("config");
-	tags = dscm_iterate_list(scm_assoc_ref(config, scm_from_locale_string("tags")),
-				 sizeof(char*), 0, &dscm_parse_string, &numtags);
-	TAGMASK = ((1 << numtags) - 1);
 	firstload = 0;
 }
 
@@ -547,6 +574,7 @@ dscm_config_initialize()
 
 	DSCM_DEFINE_P (keys, "keys", &setter_binding, NULL);
 	DSCM_DEFINE_P (buttons, "buttons", &setter_binding, NULL);
+	DSCM_DEFINE_P (tags, "tags", &setter_tags, &reload_tags);
 	DSCM_DEFINE_P (layouts, "layouts", &setter_layout, &reload_layouts);
 	DSCM_DEFINE_P (layouts, "rules", &setter_rule, &reload_rules);
 	DSCM_DEFINE_P (layouts, "monrules", &setter_monrule, &reload_monrules);

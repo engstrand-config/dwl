@@ -1,3 +1,5 @@
+(set 'tags (map number->string (iota 9 1)))
+
 (set-layouts 'tile "[]=" 'dwl:tile)
 (set-layouts 'monocle "|M|" 'dwl:monocle)
 
@@ -10,19 +12,16 @@
 
 (for-each
  (lambda (v)
-   (bind 'keys
-                (string-append "C-M-<F" (number->string v) ">")
-                (lambda () (dwl:chvt v))))
+   (bind 'keys (string-append "C-M-<F" (number->string v) ">")
+         (lambda () (dwl:chvt v))))
  (iota 12 1))
 
 (for-each
  (lambda (t)
-   (bind 'keys
-                (string-append "s-" (number->string t))
-                (lambda () (dwl:view t)))
-   (bind 'keys
-                (string-append "s-S-" (number->string t))
-                (lambda () (dwl:tag t))))
+   (bind 'keys (string-append "s-" (number->string t))
+         (lambda () (dwl:view t)))
+   (bind 'keys (string-append "s-S-" (number->string t))
+         (lambda () (dwl:tag t))))
  (iota 9 1))
 
 (bind 'keys "s-d" (lambda () (dwl:spawn "bemenu-run")))
