@@ -149,7 +149,7 @@ static inline void
 setter_tags(void *cvar, SCM value)
 {
 	DSCM_ASSERT_TYPE(scm_is_true(scm_list_p(value)),
-			 value, "set", DSCM_ARG2, "list");
+			 value, "set", DSCM_ARG2, "list[string]");
 	DSCM_ASSERT(!scm_is_null(value),
 		    "Invalid tag list, there must be at least one tag: ~a", value);
 	int length = scm_to_int(scm_length(value));
@@ -206,9 +206,9 @@ setter_binding(void *cvar, SCM value)
 	SCM action = scm_cadr(value);
 
 	DSCM_ASSERT_TYPE(scm_is_string(sequence),
-			 sequence, "bind", DSCM_ARG2, "string");
+			 value, "bind", DSCM_ARG2, "string");
 	DSCM_ASSERT_TYPE(dscm_is_callback(action),
-			 action, "bind", DSCM_ARG3, "symbol or procedure");
+			 value, "bind", DSCM_ARG3, "symbol or procedure");
 
 	/* Attempt to parse before any allocation */
 	dscm_parse_binding_sequence(&tmp, scm_to_locale_string(sequence));
@@ -237,11 +237,11 @@ setter_layout(void *cvar, SCM value)
 	SCM arrange = scm_caddr(value);
 
 	DSCM_ASSERT_TYPE(scm_is_symbol(id),
-			 id, "set-layouts", DSCM_ARG1, "symbol");
+			 value, "set-layouts", DSCM_ARG1, "symbol");
 	DSCM_ASSERT_TYPE(scm_is_string(symbol),
-			 symbol, "set-layouts", DSCM_ARG2, "string");
+			 value, "set-layouts", DSCM_ARG2, "string");
 	DSCM_ASSERT_TYPE(scm_is_symbol(arrange),
-			 arrange, "set-layouts", DSCM_ARG3, "symbol");
+			 value, "set-layouts", DSCM_ARG3, "symbol");
 
 	char *idstr = scm_to_locale_string(scm_symbol_to_string(id));
 	char *symbolstr = scm_to_locale_string(symbol);
@@ -299,35 +299,43 @@ setter_rule(void *cvar, SCM value)
 		r = calloc(1, sizeof(Rule));
 		r->id = id;
 		r->title = title;
+		r->monitor = -1;
 	}
-
-	/* Default value should be -1 which results in selmon */
-	r->monitor = -1;
 
 	scm_dynwind_begin(0);
 	scm_dynwind_unwind_handler(free, r, 0);
 	if (!found && id) scm_dynwind_unwind_handler(free, id, 0);
 	if (!found && title) scm_dynwind_unwind_handler(free, title, 0);
 
+	DSCM_ASSERT_TYPE(scm_is_bool(floating),
+			 value, "set-rules", "floating?", "bool");
+	r->isfloating = scm_to_bool(floating);
+
 	if (!scm_is_false(tags)) {
-		/* TODO: Allow list of tags as well */
-		DSCM_ASSERT_TYPE(scm_is_unsigned_integer(tags, 0, UINT_MAX),
-				 tags, "set-rules", "tags", "unsigned int");
-		r->tags = scm_to_unsigned_integer(tags, 0, UINT_MAX);
-	}
-	if (!scm_is_false(floating)) {
-		DSCM_ASSERT_TYPE(scm_is_bool(floating),
-				 floating, "set-rules", "floating?", "bool");
-		r->isfloating = scm_to_bool(floating);
+		if (scm_is_true(scm_list_p(tags))) {
+			SCM ref;
+			for (int i = 0; i < scm_to_int(scm_length(tags)); i++) {
+				ref = scm_list_ref(tags, scm_from_int(i));
+				DSCM_ASSERT_TYPE(
+					scm_is_unsigned_integer(ref, 0, UINT_MAX),
+					value, "set-rules", "tags",
+					"list[unsigned int]");
+				r->tags |= (1 << dscm_get_tag(ref, numtags));
+			}
+		} else {
+			DSCM_ASSERT_TYPE(scm_is_unsigned_integer(tags, 0, UINT_MAX),
+					 value, "set-rules", "tags", "unsigned int");
+			r->tags = dscm_get_tag(tags, numtags);
+		}
 	}
 	if (!scm_is_false(monitor)) {
 		DSCM_ASSERT_TYPE(scm_is_integer(monitor),
-				 monitor, "set-rules", "monitor", "int");
+				 value, "set-rules", "monitor", "int");
 		r->monitor = scm_to_int(monitor);
 	}
 	if (!scm_is_false(alpha)) {
 		DSCM_ASSERT_TYPE(scm_is_number(alpha),
-				 alpha, "set-rules", "alpha", "double");
+				 value, "set-rules", "alpha", "double");
 		r->alpha = scm_to_double(alpha);
 	}
 
@@ -374,32 +382,32 @@ setter_monrule(void *cvar, SCM value)
 
 	if (!scm_is_false(mfact)) {
 		DSCM_ASSERT_TYPE(scm_is_number(mfact),
-				 mfact, "set-monitor-rules", "master-factor", "float");
+				 value, "set-monitor-rules", "master-factor", "float");
 		r->mfact = (float)scm_to_double(mfact);
 	}
 	if (!scm_is_false(scale)) {
 		DSCM_ASSERT_TYPE(scm_is_number(scale),
-				 scale, "set-monitor-rules", "scale", "float");
+				 value, "set-monitor-rules", "scale", "float");
 		r->scale = (float)scm_to_double(scale);
 	}
 	if (!scm_is_false(nmaster)) {
 		DSCM_ASSERT_TYPE(scm_is_integer(nmaster),
-				 nmaster, "set-monitor-rules", "masters", "int");
+				 value, "set-monitor-rules", "masters", "int");
 		r->nmaster = scm_to_int(nmaster);
 	}
 	if (!scm_is_false(x)) {
 		DSCM_ASSERT_TYPE(scm_is_integer(x),
-				 x, "set-monitor-rules", "x", "int");
+				 value, "set-monitor-rules", "x", "int");
 		r->x = scm_to_int(x);
 	}
 	if (!scm_is_false(y)) {
 		DSCM_ASSERT_TYPE(scm_is_integer(y),
-				 y, "set-monitor-rules", "y", "int");
+				 value, "set-monitor-rules", "y", "int");
 		r->y = scm_to_int(y);
 	}
 	if (!scm_is_false(rr)) {
 		DSCM_ASSERT_TYPE(scm_is_symbol(rr),
-				 rr, "set-monitor-rules", "transform", "symbol");
+				 value, "set-monitor-rules", "transform", "symbol");
 		SCM rreval = scm_primitive_eval(rr);
 		DSCM_ASSERT(scm_is_integer(rreval),
 			    "Unbound transform ~s in monitor rule: ~a", rr, value);
@@ -407,7 +415,7 @@ setter_monrule(void *cvar, SCM value)
 	}
 	if (!scm_is_false(lt)) {
 		DSCM_ASSERT_TYPE(scm_is_symbol(lt),
-				 lt, "set-monitor-rules", "layout",
+				 value, "set-monitor-rules", "layout",
 				 "symbol (matching id of defined layouts)");
 		Layout *l;
 		char *id = scm_to_locale_string(scm_symbol_to_string(lt));

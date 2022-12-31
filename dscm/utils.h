@@ -63,7 +63,7 @@ static inline unsigned int
 dscm_get_tag(SCM tag, unsigned int tags)
 {
 	unsigned int target_tag = scm_to_unsigned_integer(tag, 1, tags) - 1;
-	return (1 << (target_tag));
+	return (1 << target_tag);
 }
 
 static inline void
