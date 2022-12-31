@@ -877,7 +877,7 @@ commitnotify(struct wl_listener *listener, void *data)
 		c->isfloating ? resize(c, c->geom, 1, c->bw) : arrange(c->mon);
 
 	/* mark a pending resize as completed */
-	if (c->resize && (c->resize <= c->surface.xdg->current.configure_serial))
+	if (c->resize && c->resize <= c->surface.xdg->current.configure_serial)
 		c->resize = 0;
 }
 
@@ -1302,14 +1302,14 @@ Monitor *
 dirtomon(enum wlr_direction dir)
 {
 	struct wlr_output *next;
-	if (wlr_output_layout_get(output_layout, selmon->wlr_output)
-	    && (next = wlr_output_layout_adjacent_output(output_layout,
-							 dir, selmon->wlr_output, selmon->m.x, selmon->m.y)))
+	if (!wlr_output_layout_get(output_layout, selmon->wlr_output))
+		return selmon;
+	if ((next = wlr_output_layout_adjacent_output(
+		     output_layout, dir, selmon->wlr_output, selmon->m.x, selmon->m.y)))
 		return next->data;
-	if (wlr_output_layout_get(output_layout, selmon->wlr_output)
-	    && (next = wlr_output_layout_farthest_output(output_layout,
-							 dir ^ (WLR_DIRECTION_LEFT|WLR_DIRECTION_RIGHT|WLR_DIRECTION_UP|WLR_DIRECTION_DOWN),
-							 selmon->wlr_output, selmon->m.x, selmon->m.y)))
+	if ((next = wlr_output_layout_farthest_output(
+		     output_layout, dir ^ (WLR_DIRECTION_LEFT|WLR_DIRECTION_RIGHT|WLR_DIRECTION_UP|WLR_DIRECTION_DOWN),
+		     selmon->wlr_output, selmon->m.x, selmon->m.y)))
 		return next->data;
 	return selmon;
 }
@@ -1973,7 +1973,7 @@ rendermon(struct wl_listener *listener, void *data)
 	/* Render if no XDG clients have an outstanding resize and are visible on
 	 * this monitor. */
 	wl_list_for_each(c, &clients, link)
-		if (client_is_rendered_on_mon(c, m) && (!c->isfloating && c->resize))
+		if (c->resize && !c->isfloating && client_is_rendered_on_mon(c, m))
 			goto skip;
 	if (!wlr_scene_output_commit(m->scene_output))
 		return;
@@ -2015,7 +2015,7 @@ resize(Client *c, struct wlr_box geo, int interact, int draw_borders)
 	wlr_scene_node_set_position(&c->border[2]->node, 0, c->bw);
 	wlr_scene_node_set_position(&c->border[3]->node, c->geom.width - c->bw, c->bw);
 
-	/* wlroots makes this a no-op if size hasn't changed */
+	/* this is a no-op if size hasn't changed */
 	c->resize = client_set_size(c, c->geom.width - 2 * c->bw,
 				    c->geom.height - 2 * c->bw);
 }
@@ -2731,9 +2731,13 @@ updatemons(struct wl_listener *listener, void *data)
 		if (m->wlr_output->enabled
 		    && !wlr_output_layout_get(output_layout, m->wlr_output))
 			wlr_output_layout_add_auto(output_layout, m->wlr_output);
+
 	/* Now that we update the output layout we can get its box */
 	wlr_output_layout_get_box(output_layout, NULL, &sgeom);
+
+	/* Make sure the clients are hidden when dwl is locked */
 	wlr_scene_rect_set_size(locked_bg, sgeom.width, sgeom.height);
+
 	wl_list_for_each(m, &mons, link) {
 		if (!m->wlr_output->enabled)
 			continue;
@@ -2743,10 +2747,6 @@ updatemons(struct wl_listener *listener, void *data)
 		wlr_output_layout_get_box(output_layout, m->wlr_output, &(m->m));
 		wlr_output_layout_get_box(output_layout, m->wlr_output, &(m->w));
 		wlr_scene_output_set_position(m->scene_output, m->m.x, m->m.y);
-		/* Calculate the effective monitor geometry to use for clients */
-		arrangelayers(m);
-		/* Don't move clients to the left output when plugging monitors */
-		arrange(m);
 
 		wlr_scene_node_set_position(&m->fullscreen_bg->node, m->m.x, m->m.y);
 		wlr_scene_rect_set_size(m->fullscreen_bg, m->m.width, m->m.height);
@@ -2757,6 +2757,11 @@ updatemons(struct wl_listener *listener, void *data)
 			wlr_session_lock_surface_v1_configure(m->lock_surface, m->m.width,
 					m->m.height);
 		}
+
+		/* Calculate the effective monitor geometry to use for clients */
+		arrangelayers(m);
+		/* Don't move clients to the left output when plugging monitors */
+		arrange(m);
 
 		config_head->state.enabled = 1;
 		config_head->state.mode = m->wlr_output->current_mode;
@@ -2789,8 +2794,8 @@ urgent(struct wl_listener *listener, void *data)
 {
 	struct wlr_xdg_activation_v1_request_activate_event *event = data;
 	Client *c = NULL;
-	int type = toplevel_from_wlr_surface(event->surface, &c, NULL);
-	if (type >= 0 && type != LayerShell && c != focustop(selmon)) {
+	toplevel_from_wlr_surface(event->surface, &c, NULL);
+	if (c && c != focustop(selmon)) {
 		c->isurgent = 1;
 		printstatus();
 	}
