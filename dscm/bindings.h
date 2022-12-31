@@ -298,7 +298,7 @@ static inline SCM
 dscm_binding_set(SCM key, SCM value)
 {
 	SCM meta = scm_hash_ref(metadata, key, SCM_UNDEFINED);
-	DSCM_ASSERT_TYPE(!scm_is_false(meta), key, DSCM_ARG1, "set", "symbol");
+	DSCM_ASSERT_TYPE(!scm_is_false(meta), key, "set", DSCM_ARG1, "symbol");
 
 	void *cvar = scm_to_pointer(scm_car(meta));
 	dscm_setter_t setter = (dscm_setter_t)scm_to_pointer(scm_cadr(meta));
@@ -323,11 +323,7 @@ static inline SCM
 dscm_binding_bind(SCM list, SCM sequence, SCM action)
 {
 	DSCM_ASSERT_TYPE(scm_is_symbol(list),
-			 list, DSCM_ARG1, "bind", "symbol");
-	DSCM_ASSERT_TYPE(scm_is_string(sequence),
-			 sequence, DSCM_ARG2, "bind", "string");
-	DSCM_ASSERT_TYPE(dscm_is_callback(action),
-			 action, DSCM_ARG3, "bind", "symbol or procedure");
+			 list, "bind", DSCM_ARG1, "symbol");
 	dscm_binding_set(list, scm_list_2(sequence, action));
 	return SCM_BOOL_T;
 }
@@ -335,12 +331,6 @@ dscm_binding_bind(SCM list, SCM sequence, SCM action)
 static inline SCM
 dscm_binding_setlayouts(SCM id, SCM symbol, SCM arrange)
 {
-	DSCM_ASSERT_TYPE(scm_is_symbol(id),
-			 id, DSCM_ARG1, "set-layouts", "symbol");
-	DSCM_ASSERT_TYPE(scm_is_string(symbol),
-			 symbol, DSCM_ARG2, "set-layouts", "string");
-	DSCM_ASSERT_TYPE(scm_is_symbol(arrange),
-			 arrange, DSCM_ARG3, "set-layouts", "symbol");
 	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("layouts")),
 			 scm_list_3(id, symbol, arrange));
 	return SCM_BOOL_T;
@@ -349,8 +339,6 @@ dscm_binding_setlayouts(SCM id, SCM symbol, SCM arrange)
 static inline SCM
 dscm_binding_setrules(SCM rule)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(rule) == SCM_BOOL_T),
-			 rule, DSCM_ARG1, "set-rules", "alist");
 	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("rules")), rule);
 	return SCM_BOOL_T;
 }
@@ -358,8 +346,6 @@ dscm_binding_setrules(SCM rule)
 static inline SCM
 dscm_binding_setmonrules(SCM rule)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(rule) == SCM_BOOL_T),
-			 rule, DSCM_ARG1, "set-monitor-rules", "alist");
 	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("monrules")), rule);
 	return SCM_BOOL_T;
 }
@@ -367,8 +353,6 @@ dscm_binding_setmonrules(SCM rule)
 static inline SCM
 dscm_binding_setxkbrules(SCM xkb)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(xkb) == SCM_BOOL_T),
-			 xkb, DSCM_ARG1, "set-xkb-rules", "alist");
 	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("xkb-rules")), xkb);
 	return SCM_BOOL_T;
 }
