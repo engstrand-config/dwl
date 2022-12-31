@@ -491,7 +491,30 @@ static inline void
 dscm_config_load()
 {
 	scm_c_primitive_load(config_file);
-	firstload = 0;
+
+	if (firstload) {
+		/* Ensure that all required settings have been set */
+		int found = 0;
+		MonitorRule *r;
+		wl_list_for_each(r, &monrules, link)
+			if (r->name == NULL)
+				found = 1;
+		if (!found)
+			die("dscm: no default monitor rule with name = NULL set\n\n\
+Consider adding something like the following to your config:\n\
+(set-monitor-rules '((masters . 1)\n\
+		     (master-factor . 0.55)\n\
+		     (scale . 1)\n\
+		     (rr . TRANSFORM-NORMAL)\n\
+		     (layout . tile)))");
+		if (!wl_list_length(&layouts))
+			die("dscm: no layouts found, please add at least one layout\n\n\
+Consider adding the following to your config:\n\
+(set-layouts 'tile \"[]=\" 'dwl:tile)\n\
+(set-layouts 'monocle \"|M|\" 'dwl:monocle)");
+
+		firstload = 0;
+	}
 }
 
 static inline void
