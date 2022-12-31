@@ -102,7 +102,7 @@ setter_double(void *cvar, SCM value)
 static inline void
 setter_color(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T || scm_is_string(value)),
+	DSCM_ASSERT_TYPE((scm_is_true(scm_list_p(value)) || scm_is_string(value)),
 			 value, DSCM_ARG2, "set", "float[4] or string");
 
 	float color[4];
@@ -148,7 +148,7 @@ setter_color(void *cvar, SCM value)
 static inline void
 setter_tags(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T),
+	DSCM_ASSERT_TYPE(scm_is_true(scm_list_p(value)),
 			 value, DSCM_ARG2, "set", "list");
 	DSCM_ASSERT(!scm_is_null(value),
 		    "Invalid tag list, there must be at least one tag: ~a", value);
@@ -301,29 +301,18 @@ setter_monrule(void *cvar, SCM value)
 	MonitorRule *r;
 	int found = 0;
 	struct wl_list *lst = cvar;
-	char *name = dscm_assoc_ref_string(value, "name");
-	char *lt = scm_to_locale_string(scm_symbol_to_string(dscm_assoc_ref(value, "layout")));
 
+	char *name = dscm_assoc_ref_string(value, "name");
 	SCM mfact = dscm_assoc_ref(value, "master-factor");
 	SCM nmaster = dscm_assoc_ref(value, "masters");
 	SCM scale = dscm_assoc_ref(value, "scale");
 	SCM rr = dscm_assoc_ref(value, "transform");
 	SCM x = dscm_assoc_ref(value, "x");
 	SCM y = dscm_assoc_ref(value, "y");
-
-	/* TODO: add function for getting value and asserting type */
-	/* DSCM_ASSERT_TYPE(scm_is_unsigned_integer(tags, 0, UINT_MAX),
-	   tags, "unsigned int"); */
-	/* DSCM_ASSERT_TYPE(scm_is_float(mfact), mfact, "float"); */
-	/* DSCM_ASSERT_TYPE(scm_is_float(scale), scale, "float"); */
-	/* DSCM_ASSERT_TYPE(scm_is_symbol(rr), rr, "symbol"); */
-	/* DSCM_ASSERT_TYPE(scm_is_symbol(lt), lt, "symbol"); */
-	/* DSCM_ASSERT_TYPE(scm_is_integer(nmaster), nmaster, "int"); */
-	/* DSCM_ASSERT_TYPE(scm_is_integer(x), x, "int"); */
-	/* DSCM_ASSERT_TYPE(scm_is_integer(y), y, "int"); */
+	SCM lt = dscm_assoc_ref(value, "layout");
 
 	wl_list_for_each(r, lst, link) {
-		if ((r->name == NULL && name == NULL) || (r->name && name && !strcmp(r->name, name))) {
+		if ((!r->name && !name) || (r->name && name && !strcmp(r->name, name))) {
 			found = 1;
 			if (name != NULL) free(name);
 			break;
@@ -333,37 +322,66 @@ setter_monrule(void *cvar, SCM value)
 	if (!found) {
 		r = calloc(1, sizeof(MonitorRule));
 		r->name = name;
-		wl_list_insert(lst, &r->link);
 	}
 
-	if (!scm_is_false(mfact))
+	scm_dynwind_begin(0);
+	scm_dynwind_unwind_handler(free, r, 0);
+	if (name) scm_dynwind_unwind_handler(free, name, 0);
+
+	if (!scm_is_false(mfact)) {
+		DSCM_ASSERT_TYPE(scm_is_number(mfact),
+				 mfact, "master-factor", "set-monitor-rules", "float");
 		r->mfact = (float)scm_to_double(mfact);
-	if (!scm_is_false(scale))
+	}
+	if (!scm_is_false(scale)) {
+		DSCM_ASSERT_TYPE(scm_is_number(scale),
+				 scale, "scale", "set-monitor-rules", "float");
 		r->scale = (float)scm_to_double(scale);
-	if (!scm_is_false(nmaster))
+	}
+	if (!scm_is_false(nmaster)) {
+		DSCM_ASSERT_TYPE(scm_is_integer(nmaster),
+				 nmaster, "masters", "set-monitor-rules", "int");
 		r->nmaster = scm_to_int(nmaster);
-	if (!scm_is_false(x))
+	}
+	if (!scm_is_false(x)) {
+		DSCM_ASSERT_TYPE(scm_is_integer(x),
+				 x, "x", "set-monitor-rules", "int");
 		r->x = scm_to_int(x);
-	if (!scm_is_false(y))
+	}
+	if (!scm_is_false(y)) {
+		DSCM_ASSERT_TYPE(scm_is_integer(y),
+				 y, "y", "set-monitor-rules", "int");
 		r->y = scm_to_int(y);
+	}
 	if (!scm_is_false(rr)) {
+		DSCM_ASSERT_TYPE(scm_is_symbol(rr),
+				 rr, "transform", "set-monitor-rules", "symbol");
 		SCM rreval = scm_primitive_eval(rr);
-		/* DSCM_ASSERT_TYPE(scm_is_integer(rreval), rreval, "int"); */
+		DSCM_ASSERT(scm_is_integer(rreval),
+			    "Unbound transform ~s in monitor rule: ~a", rr, value);
 		r->rr = scm_to_int(rreval);
 	}
-
-	if (lt != NULL) {
+	if (!scm_is_false(lt)) {
+		DSCM_ASSERT_TYPE(scm_is_symbol(lt),
+				 lt, "layout", "set-monitor-rules",
+				 "symbol (matching id of defined layouts)");
 		Layout *l;
+		char *id = scm_to_locale_string(scm_symbol_to_string(lt));
 		wl_list_for_each(l, &layouts, link) {
-			if (!strcmp(l->id, lt)) {
-				free(lt);
+			if (!strcmp(l->id, id)) {
+				free(id);
 				r->lt = l;
 				break;
 			}
 		}
-		DSCM_ASSERT((r->lt != NULL),
-			    "Invalid layout reference in monitor rule: ~a", value);
+	} else {
+		r->lt = wl_container_of(layouts.next, r->lt, link);
 	}
+
+	if (!found)
+		wl_list_insert(lst, &r->link);
+
+	scm_dynwind_end();
 }
 
 static inline void
@@ -485,26 +503,6 @@ dscm_config_initialize()
 	wl_list_init(&rules);
 	wl_list_init(&monrules);
 
-	const char *id = "tile";
-	const char *symbol = "[]=";
-	Layout *l = calloc(1, sizeof(Layout));
-	l->id = strdup("tile");
-	l->symbol = strdup("[]=");
-	l->arrange = dscm_get_pointer(
-		scm_string_to_symbol(scm_from_locale_string("dwl:tile")));
-	wl_list_insert(&layouts, &l->link);
-
-	MonitorRule *r = calloc(1, sizeof(MonitorRule));
-	r->name = NULL;
-	r->nmaster = 1;
-	r->mfact = 0.55;
-	r->scale = 1;
-	r->lt = l;
-	r->rr = WL_OUTPUT_TRANSFORM_NORMAL;
-	r->x = 0;
-	r->y = 0;
-	wl_list_insert(&monrules, &r->link);
-
 	metadata = scm_make_hash_table(scm_from_int(1));
 
 	/* Populate keycode hash table */
@@ -567,8 +565,8 @@ dscm_config_initialize()
 	DSCM_DEFINE_P (buttons, "buttons", &setter_binding, NULL);
 	DSCM_DEFINE_P (tags, "tags", &setter_tags, &reload_tags);
 	DSCM_DEFINE_P (layouts, "layouts", &setter_layout, &reload_layouts);
-	DSCM_DEFINE_P (layouts, "rules", &setter_rule, &reload_rules);
-	DSCM_DEFINE_P (layouts, "monrules", &setter_monrule, &reload_monrules);
+	DSCM_DEFINE_P (rules, "rules", &setter_rule, &reload_rules);
+	DSCM_DEFINE_P (monrules, "monrules", &setter_monrule, &reload_monrules);
 }
 
 static inline void

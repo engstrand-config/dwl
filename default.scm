@@ -3,12 +3,12 @@
 (set-layouts 'tile "[]=" 'dwl:tile)
 (set-layouts 'monocle "|M|" 'dwl:monocle)
 
-;; (set-monitor-rules '())
-;; (set-monitor-rules '((masters . 1)
-;;                      (master-factor . 0.55)
-;;                      (scale . 1)
-;;                      (rr . TRANSFORM-NORMAL)
-;;                      (layout . tile)))
+;; There must be a default monitor rule (i.e. with name == NULL)
+(set-monitor-rules '((masters . 1)
+                     (master-factor . 0.55)
+                     (scale . 1)
+                     (rr . TRANSFORM-NORMAL)
+                     (layout . tile)))
 
 (for-each
  (lambda (v)
