@@ -535,7 +535,6 @@ applyrules(Client *c)
 	if (!(title = client_get_title(c)))
 		title = broken;
 
-
 	wl_list_for_each(r, &rules, link) {
 		if ((!r->title || strstr(title, r->title))
 		    && (!r->id || strstr(appid, r->id))) {

@@ -527,7 +527,16 @@ reload_layouts()
 
 static inline void
 reload_rules()
-{}
+{
+	Client *c;
+	Monitor *m;
+	wl_list_for_each(c, &clients, link)
+		applyrules(c);
+	wl_list_for_each(m, &mons, link) {
+		arrangelayers(m);
+		arrange(m);
+	}
+}
 
 static inline void
 reload_monrules()
