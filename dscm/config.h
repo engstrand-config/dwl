@@ -81,29 +81,29 @@ static enum libinput_config_accel_profile accel_profile;
 static inline void
 setter_uint(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE(scm_is_integer(value), value, "unsigned int");
+	DSCM_ASSERT_TYPE(scm_is_integer(value), value, DSCM_ARG2, "set", "unsigned int");
 	(*((unsigned int*)cvar)) = scm_to_unsigned_integer(value, 0, UINT_MAX);
 }
 
 static inline void
 setter_uint32(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE(scm_is_integer(value), value, "uint32_t");
+	DSCM_ASSERT_TYPE(scm_is_integer(value), value, DSCM_ARG2, "set", "uint32");
 	(*((uint32_t*)cvar)) = scm_to_uint32(value);
 }
 
 static inline void
 setter_double(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE(scm_is_number(value), value, "double");
+	DSCM_ASSERT_TYPE(scm_is_number(value), value, DSCM_ARG2, "set", "double");
 	(*((double*)cvar)) = scm_to_double(value);
 }
 
 static inline void
 setter_color(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE(scm_list(value) || scm_is_string(value),
-			 value, "float[4] or string");
+	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T || scm_is_string(value)),
+			 value, DSCM_ARG2, "set", "float[4] or string");
 
 	float color[4];
 	if (scm_is_string(value)) {
@@ -148,12 +148,13 @@ setter_color(void *cvar, SCM value)
 static inline void
 setter_tags(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "list");
+	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T),
+			 value, DSCM_ARG2, "set", "list");
 	DSCM_ASSERT(!scm_is_null(value),
 		    "Invalid tag list, there must be at least one tag: ~a", value);
-	unsigned int length = scm_to_unsigned_integer(scm_length(value), 0, UINT_MAX);
+	int length = scm_to_int(scm_length(value));
 	char **newtags = calloc(length, sizeof(char*));
-	for (size_t i = 0; i < length; i++) {
+	for (int i = 0; i < length; i++) {
 		SCM ref = scm_list_ref(value, scm_from_int(i));
 		DSCM_ASSERT(scm_is_string(ref),
 			    "Invalid tag ~s, expected string: ~a", ref, value);
@@ -175,7 +176,6 @@ setter_tags(void *cvar, SCM value)
 static inline void
 setter_xkb_rules(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE(scm_list_p(value) == SCM_BOOL_T, value, "alist");
 	struct xkb_rule_names *xkb = (*((struct xkb_rule_names**)cvar));
 	if (xkb) {
 		if (xkb->rules) free((char*)xkb->rules);
@@ -187,26 +187,25 @@ setter_xkb_rules(void *cvar, SCM value)
 		xkb = calloc(1, sizeof(struct xkb_rule_names));
 	}
 
-	xkb->rules = dscm_alist_get_string(value, "rules");
-	xkb->model = dscm_alist_get_string(value, "model");
-	xkb->layout = dscm_alist_get_string(value, "layout");
-	xkb->variant = dscm_alist_get_string(value, "variant");
-	xkb->options = dscm_alist_get_string(value, "options");
+	xkb->rules = dscm_assoc_ref_string(value, "rules");
+	xkb->model = dscm_assoc_ref_string(value, "model");
+	xkb->layout = dscm_assoc_ref_string(value, "layout");
+	xkb->variant = dscm_assoc_ref_string(value, "variant");
+	xkb->options = dscm_assoc_ref_string(value, "options");
 }
 
 static inline void
 setter_binding(void *cvar, SCM id, SCM value)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "list");
 	SCM sequence = scm_car(value);
 	scm_t_bits *action = dscm_get_pointer(scm_cadr(value));
-	DSCM_ASSERT_TYPE(scm_is_string(sequence), sequence, "string");
+	DSCM_ASSERT_TYPE(scm_is_string(sequence),
+			 sequence, DSCM_ARG2, "bind", "string");
 
 	Binding tmp, *b;
 	struct wl_list *lst = cvar;
 
 	/* Attempt to parse before any allocation */
-	/* TODO: Use dynwind? */
 	dscm_parse_binding_sequence(&tmp, scm_to_locale_string(sequence));
 
 	wl_list_for_each(b, lst, link) {
@@ -255,25 +254,24 @@ setter_layout(void *cvar, SCM value)
 static inline void
 setter_rule(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "alist");
-	char *id = dscm_alist_get_string(value, "id");
-	char *title = dscm_alist_get_string(value, "title");
+	char *id = dscm_assoc_ref_string(value, "id");
+	char *title = dscm_assoc_ref_string(value, "title");
 
-	DSCM_ASSERT(id || title, "Missing id and/or title in rule: ~s", value);
+	DSCM_ASSERT((id || title), "Missing id and/or title in rule: ~s", value);
 
 	Rule *r;
 	int found = 0;
 	struct wl_list *lst = cvar;
-	SCM tags = dscm_alist_get(value, "tag");
-	SCM isfloating = dscm_alist_get(value, "is-floating");
-	SCM monitor = dscm_alist_get(value, "monitor");
-	SCM alpha = dscm_alist_get(value, "alpha");
+	SCM tags = dscm_assoc_ref(value, "tag");
+	SCM isfloating = dscm_assoc_ref(value, "is-floating");
+	SCM monitor = dscm_assoc_ref(value, "monitor");
+	SCM alpha = dscm_assoc_ref(value, "alpha");
 
-	DSCM_ASSERT_TYPE(scm_is_unsigned_integer(tags, 0, UINT_MAX),
-			 tags, "unsigned int");
-	DSCM_ASSERT_TYPE(scm_is_integer(isfloating), tags, "int");
-	DSCM_ASSERT_TYPE(scm_is_integer(monitor), tags, "int");
-	DSCM_ASSERT_TYPE(scm_is_number(alpha), tags, "double");
+	/* DSCM_ASSERT_TYPE(scm_is_unsigned_integer(tags, 0, UINT_MAX), */
+	/*		 tags, "unsigned int"); */
+	/* DSCM_ASSERT_TYPE(scm_is_integer(isfloating), tags, "int"); */
+	/* DSCM_ASSERT_TYPE(scm_is_integer(monitor), tags, "int"); */
+	/* DSCM_ASSERT_TYPE(scm_is_number(alpha), tags, "double"); */
 
 	wl_list_for_each(r, lst, link) {
 		if ((id && !strcmp(r->id, id)) && (title && !strcmp(r->title, title))) {
@@ -300,19 +298,18 @@ setter_rule(void *cvar, SCM value)
 static inline void
 setter_monrule(void *cvar, SCM value)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(value) == SCM_BOOL_T), value, "alist");
 	MonitorRule *r;
 	int found = 0;
 	struct wl_list *lst = cvar;
-	char *name = dscm_alist_get_string(value, "name");
-	char *lt = scm_to_locale_string(scm_symbol_to_string(dscm_alist_get(value, "layout")));
+	char *name = dscm_assoc_ref_string(value, "name");
+	char *lt = scm_to_locale_string(scm_symbol_to_string(dscm_assoc_ref(value, "layout")));
 
-	SCM mfact = dscm_alist_get(value, "master-factor");
-	SCM nmaster = dscm_alist_get(value, "masters");
-	SCM scale = dscm_alist_get(value, "scale");
-	SCM rr = dscm_alist_get(value, "transform");
-	SCM x = dscm_alist_get(value, "x");
-	SCM y = dscm_alist_get(value, "y");
+	SCM mfact = dscm_assoc_ref(value, "master-factor");
+	SCM nmaster = dscm_assoc_ref(value, "masters");
+	SCM scale = dscm_assoc_ref(value, "scale");
+	SCM rr = dscm_assoc_ref(value, "transform");
+	SCM x = dscm_assoc_ref(value, "x");
+	SCM y = dscm_assoc_ref(value, "y");
 
 	/* TODO: add function for getting value and asserting type */
 	/* DSCM_ASSERT_TYPE(scm_is_unsigned_integer(tags, 0, UINT_MAX),
@@ -351,7 +348,7 @@ setter_monrule(void *cvar, SCM value)
 		r->y = scm_to_int(y);
 	if (!scm_is_false(rr)) {
 		SCM rreval = scm_primitive_eval(rr);
-		DSCM_ASSERT_TYPE(scm_is_integer(rreval), rreval, "int");
+		/* DSCM_ASSERT_TYPE(scm_is_integer(rreval), rreval, "int"); */
 		r->rr = scm_to_int(rreval);
 	}
 
@@ -367,11 +364,6 @@ setter_monrule(void *cvar, SCM value)
 		DSCM_ASSERT((r->lt != NULL),
 			    "Invalid layout reference in monitor rule: ~a", value);
 	}
-}
-static inline void
-dscm_parse_string(unsigned int index, SCM str, void *data)
-{
-       ((char**)data)[index] = scm_to_locale_string(str);
 }
 
 static inline void
@@ -442,9 +434,8 @@ reload_xkb_rules()
 	struct xkb_context *context;
 	wl_list_for_each(kb, &keyboards, link) {
 		context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-		keymap = xkb_keymap_new_from_names(context, xkb_rules,
-						   XKB_KEYMAP_COMPILE_NO_FLAGS);
-
+		keymap = xkb_keymap_new_from_names(
+			context, xkb_rules, XKB_KEYMAP_COMPILE_NO_FLAGS);
 		wlr_keyboard_set_keymap(kb->wlr_keyboard, keymap);
 		xkb_keymap_unref(keymap);
 		xkb_context_unref(context);

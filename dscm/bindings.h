@@ -19,10 +19,11 @@ dscm_binding_spawn(SCM args)
 {
 	if (scm_is_null(args))
 		return SCM_BOOL_F;
-	unsigned int i = 0, length = dscm_get_list_length(args);
+	unsigned int i = 0, length = scm_to_unsigned_integer(
+		scm_length(args), 0, UINT_MAX);
 	char *cmd_args[length + 1];
 	for (; i < length; i++) {
-		SCM arg_exp = dscm_get_list_item(args, i);
+		SCM arg_exp = scm_list_ref(args, scm_from_unsigned_integer(i));
 		char *arg = scm_to_locale_string(arg_exp);
 		cmd_args[i] = arg;
 	}
@@ -294,17 +295,10 @@ dscm_binding_defaultgaps()
 }
 
 static inline SCM
-dscm_binding_reloadconfig()
-{
-	reloadconfig();
-	return SCM_BOOL_T;
-}
-
-static inline SCM
 dscm_binding_set(SCM key, SCM value)
 {
 	SCM meta = scm_hash_ref(metadata, key, SCM_UNDEFINED);
-	DSCM_ASSERT_OPTION(meta, key);
+	DSCM_ASSERT_TYPE(!scm_is_false(meta), key, DSCM_ARG1, "set", "symbol");
 
 	void *cvar = scm_to_pointer(scm_car(meta));
 	dscm_setter_t setter = (dscm_setter_t)scm_to_pointer(scm_cadr(meta));
@@ -328,11 +322,12 @@ dscm_binding_set(SCM key, SCM value)
 static inline SCM
 dscm_binding_bind(SCM list, SCM sequence, SCM action)
 {
-	DSCM_ASSERT_TYPE(scm_is_symbol(list), list, "symbol");
-	DSCM_ASSERT_TYPE(scm_is_string(sequence), sequence, "string");
-	DSCM_ASSERT_TYPE((scm_is_symbol(action) ||
-			  scm_procedure_p(action) == SCM_BOOL_T),
-			 action, "symbol or procedure");
+	DSCM_ASSERT_TYPE(scm_is_symbol(list),
+			 list, DSCM_ARG1, "bind", "symbol");
+	DSCM_ASSERT_TYPE(scm_is_string(sequence),
+			 sequence, DSCM_ARG2, "bind", "string");
+	DSCM_ASSERT_TYPE(dscm_is_callback(action),
+			 action, DSCM_ARG3, "bind", "symbol or procedure");
 	dscm_binding_set(list, scm_list_2(sequence, action));
 	return SCM_BOOL_T;
 }
@@ -340,9 +335,12 @@ dscm_binding_bind(SCM list, SCM sequence, SCM action)
 static inline SCM
 dscm_binding_setlayouts(SCM id, SCM symbol, SCM arrange)
 {
-	DSCM_ASSERT_TYPE(scm_is_symbol(id), id, "symbol");
-	DSCM_ASSERT_TYPE(scm_is_string(symbol), symbol, "string");
-	DSCM_ASSERT_TYPE(scm_is_symbol(arrange), arrange, "symbol");
+	DSCM_ASSERT_TYPE(scm_is_symbol(id),
+			 id, DSCM_ARG1, "set-layouts", "symbol");
+	DSCM_ASSERT_TYPE(scm_is_string(symbol),
+			 symbol, DSCM_ARG2, "set-layouts", "string");
+	DSCM_ASSERT_TYPE(scm_is_symbol(arrange),
+			 arrange, DSCM_ARG3, "set-layouts", "symbol");
 	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("layouts")),
 			 scm_list_3(id, symbol, arrange));
 	return SCM_BOOL_T;
@@ -351,7 +349,8 @@ dscm_binding_setlayouts(SCM id, SCM symbol, SCM arrange)
 static inline SCM
 dscm_binding_setrules(SCM rule)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(rule) == SCM_BOOL_T), rule, "alist");
+	DSCM_ASSERT_TYPE((scm_list_p(rule) == SCM_BOOL_T),
+			 rule, DSCM_ARG1, "set-rules", "alist");
 	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("rules")), rule);
 	return SCM_BOOL_T;
 }
@@ -359,15 +358,24 @@ dscm_binding_setrules(SCM rule)
 static inline SCM
 dscm_binding_setmonrules(SCM rule)
 {
-	DSCM_ASSERT_TYPE((scm_list_p(rule) == SCM_BOOL_T), rule, "alist");
+	DSCM_ASSERT_TYPE((scm_list_p(rule) == SCM_BOOL_T),
+			 rule, DSCM_ARG1, "set-monitor-rules", "alist");
 	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("monrules")), rule);
+	return SCM_BOOL_T;
+}
+
+static inline SCM
+dscm_binding_setxkbrules(SCM xkb)
+{
+	DSCM_ASSERT_TYPE((scm_list_p(xkb) == SCM_BOOL_T),
+			 xkb, DSCM_ARG1, "set-xkb-rules", "alist");
+	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("xkb-rules")), xkb);
 	return SCM_BOOL_T;
 }
 
 static inline void
 dscm_register()
 {
-	/* TODO: add bindings for other mouse buttons */
 	scm_c_define("DIRECTION-LEFT", scm_from_int(WLR_DIRECTION_LEFT));
 	scm_c_define("DIRECTION-RIGHT", scm_from_int(WLR_DIRECTION_RIGHT));
 	scm_c_define("TRANSFORM-NORMAL",
@@ -464,4 +472,5 @@ dscm_register()
 	scm_c_define_gsubr("set-layouts", 3, 0, 0, &dscm_binding_setlayouts);
 	scm_c_define_gsubr("set-rules", 1, 0, 0, &dscm_binding_setrules);
 	scm_c_define_gsubr("set-monitor-rules", 1, 0, 0, &dscm_binding_setmonrules);
+	scm_c_define_gsubr("set-xkb-rules", 1, 0, 0, &dscm_binding_setxkbrules);
 }
