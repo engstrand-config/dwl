@@ -362,6 +362,8 @@ dscm_register()
 {
 	scm_c_define("DIRECTION-LEFT", scm_from_int(WLR_DIRECTION_LEFT));
 	scm_c_define("DIRECTION-RIGHT", scm_from_int(WLR_DIRECTION_RIGHT));
+	scm_c_define("DIRECTION-UP", scm_from_int(WLR_DIRECTION_UP));
+	scm_c_define("DIRECTION-DOWN", scm_from_int(WLR_DIRECTION_DOWN));
 	scm_c_define("TRANSFORM-NORMAL",
 		     scm_from_int(WL_OUTPUT_TRANSFORM_NORMAL));
 	scm_c_define("TRANSFORM-ROTATE-90",
