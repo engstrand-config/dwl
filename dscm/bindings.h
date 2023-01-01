@@ -300,7 +300,7 @@ dscm_binding_set(SCM rest)
 	DSCM_SET_REST("set", rest, 2) {
 		SCM key = dscm_list_ref(rest, i);
 		SCM meta = scm_hash_ref(metadata, key, SCM_UNDEFINED);
-		DSCM_ASSERT_TYPE(!scm_is_false(meta), key, "set", DSCM_ARG1, "symbol");
+		DSCM_ASSERT(!scm_is_false(meta), "Invalid key in setter: ~a", key);
 
 		dscm_reloader_t func;
 		void *cvar = scm_to_pointer(scm_car(meta));

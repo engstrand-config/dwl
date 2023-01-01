@@ -19,15 +19,15 @@
 
 #define DSCM_DEFINE(CVAR, KEY, DEFVAL, SETTER, RELOADER)	\
 	{							\
-		if (DEFVAL) (CVAR) = DEFVAL;			\
+		(CVAR) = DEFVAL;				\
 		DSCM_DEFINE_P(CVAR, KEY, SETTER, RELOADER);	\
 	}
 
-SCM config;
 SCM metadata;
 
 /* Set to 0 after the initial config load */
 static unsigned int firstload = 1;
+static unsigned int inhibdef;
 
 /* Config variable definitions. */
 /* These will be automatically set from the guile config. */
@@ -609,12 +609,13 @@ reload_tags()
 static inline void
 dscm_config_load()
 {
-	if (firstload)
-		scm_c_primitive_load(PREFIX "/share/dwl-guile.defaults.scm");
-
+	if (firstload) scm_c_primitive_load(PREFIX "/share/dwl-guile/init.scm");
 	scm_c_primitive_load(config_file);
 
 	if (firstload) {
+		if (!inhibdef)
+			scm_c_primitive_load(PREFIX "/share/dwl-guile/defaults.scm");
+
 		/* Ensure that all required settings have been set */
 		int found = 0;
 		MonitorRule *r;
@@ -653,6 +654,7 @@ dscm_config_initialize()
 	/* Populate keycode hash table */
 	dscm_keycodes_initialize();
 
+	DSCM_DEFINE(inhibdef, "inhibit-defaults?", 0, &setter_bool, NULL);
 	DSCM_DEFINE(borderpx, "border-px", 1, &setter_uint, &reload_borderpx);
 	DSCM_DEFINE(gappih, "gap-ih", 0, &setter_uint, &reload_gaps);
 	DSCM_DEFINE(gappiv, "gap-iv", 0, &setter_uint, &reload_gaps);

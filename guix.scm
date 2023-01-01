@@ -152,6 +152,7 @@
             (add-after 'install 'copy-share
                        (lambda*
                            (#:key inputs outputs #:allow-other-keys)
-                         (let ((share (string-append (assoc-ref outputs "out") "/share")))
+                         (let ((share (string-append (assoc-ref outputs "out")
+                                                     "/share/dwl-guile")))
                            (copy-recursively "share" share)
                            #t))))))))
