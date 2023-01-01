@@ -147,6 +147,12 @@ typedef struct {
 } Keyboard;
 
 typedef struct {
+	struct wl_list link;
+	struct wlr_input_device *dev;
+	struct wl_listener destroy;
+} Pointer;
+
+typedef struct {
 	/* Must keep these three elements in this order */
 	unsigned int type; /* LayerShell */
 	struct wlr_box geom;
@@ -265,6 +271,8 @@ static void applyexclusive(struct wlr_box *usable_area, uint32_t anchor,
 			   int32_t exclusive, int32_t margin_top,
 			   int32_t margin_right, int32_t margin_bottom,
 			   int32_t margin_left);
+static void applylibinputrules(struct wlr_input_device *dev);
+static void applymonrules(Monitor *m);
 static void applyrules(Client *c);
 static void arrange(Monitor *m);
 static void arrangelayer(Monitor *m, struct wl_list *list,
@@ -297,6 +305,7 @@ static void destroylayersurfacenotify(struct wl_listener *listener, void *data);
 static void destroylock(SessionLock *lock, int unlocked);
 static void destroylocksurface(struct wl_listener *listener, void *data);
 static void destroynotify(struct wl_listener *listener, void *data);
+static void destroypointer(struct wl_listener *listener, void *data);
 static void destroysessionlock(struct wl_listener *listener, void *data);
 static void destroysessionmgr(struct wl_listener *listener, void *data);
 static Monitor *dirtomon(enum wlr_direction dir);
@@ -398,6 +407,7 @@ static struct wlr_xdg_activation_v1 *activation;
 static struct wlr_xdg_decoration_manager_v1 *xdg_decoration_mgr;
 static struct wl_list clients; /* tiling order */
 static struct wl_list fstack;  /* focus order */
+static struct wl_list pointers;
 static struct wl_list dscm_clients;
 static struct wlr_idle *idle;
 static struct wlr_idle_notifier_v1 *idle_notifier;
@@ -518,6 +528,24 @@ applybounds(Client *c, struct wlr_box *bbox)
 		c->geom.x = bbox->x;
 	if (c->geom.y + c->geom.height + 2 * c->bw <= bbox->y)
 		c->geom.y = bbox->y;
+}
+
+void
+applymonrules(Monitor *m)
+{
+	MonitorRule *r;
+	wl_list_for_each(r, &monrules, link) {
+		if (!r->name || strstr(m->wlr_output->name, r->name)) {
+			m->mfact = r->mfact;
+			m->nmaster = r->nmaster;
+			wlr_output_set_scale(m->wlr_output, r->scale);
+			wlr_xcursor_manager_load(cursor_mgr, r->scale);
+			m->lt[0] = m->lt[1] = r->lt;
+			wlr_output_set_transform(m->wlr_output, r->rr);
+			break;
+		}
+	}
+	wlr_output_commit(m->wlr_output);
 }
 
 void
@@ -1001,7 +1029,6 @@ createmon(struct wl_listener *listener, void *data)
 	 * monitor) becomes available. */
 	struct wlr_output *wlr_output = data;
 	size_t i;
-	MonitorRule *r;
 	Monitor *m = wlr_output->data = ecalloc(1, sizeof(*m));
 	wl_list_init(&m->dscm);
 
@@ -1017,17 +1044,7 @@ createmon(struct wl_listener *listener, void *data)
 	for (i = 0; i < LENGTH(m->layers); i++)
 		wl_list_init(&m->layers[i]);
 	m->tagset[0] = m->tagset[1] = 1;
-	wl_list_for_each(r, &monrules, link) {
-		if (!r->name || strstr(wlr_output->name, r->name)) {
-			m->mfact = r->mfact;
-			m->nmaster = r->nmaster;
-			wlr_output_set_scale(wlr_output, r->scale);
-			wlr_xcursor_manager_load(cursor_mgr, r->scale);
-			m->lt[0] = m->lt[1] = r->lt;
-			wlr_output_set_transform(wlr_output, r->rr);
-			break;
-		}
-	}
+	applymonrules(m);
 
 	/* The mode is a tuple of (width, height, refresh rate), and each
 	 * monitor supports only a specific set of modes. We just pick the
@@ -1121,46 +1138,66 @@ createnotify(struct wl_listener *listener, void *data)
 }
 
 void
-createpointer(struct wlr_pointer *pointer)
+applylibinputrules(struct wlr_input_device *dev)
 {
-	if (wlr_input_device_is_libinput(&pointer->base)) {
-		struct libinput_device *libinput_device =  (struct libinput_device*)
-			wlr_libinput_get_device_handle(&pointer->base);
+	struct libinput_device *libinput_device = (struct libinput_device*)
+		wlr_libinput_get_device_handle(dev);
 
-		if (libinput_device_config_tap_get_finger_count(libinput_device)) {
-			libinput_device_config_tap_set_enabled(libinput_device, tap_to_click);
-			libinput_device_config_tap_set_drag_enabled(libinput_device, tap_and_drag);
-			libinput_device_config_tap_set_drag_lock_enabled(libinput_device, drag_lock);
-			libinput_device_config_tap_set_button_map(libinput_device, button_map);
-		}
-
-		if (libinput_device_config_scroll_has_natural_scroll(libinput_device))
-			libinput_device_config_scroll_set_natural_scroll_enabled(libinput_device, natural_scrolling);
-
-		if (libinput_device_config_dwt_is_available(libinput_device))
-			libinput_device_config_dwt_set_enabled(libinput_device, disable_while_typing);
-
-		if (libinput_device_config_left_handed_is_available(libinput_device))
-			libinput_device_config_left_handed_set(libinput_device, left_handed);
-
-		if (libinput_device_config_middle_emulation_is_available(libinput_device))
-			libinput_device_config_middle_emulation_set_enabled(libinput_device, middle_button_emulation);
-
-		if (libinput_device_config_scroll_get_methods(libinput_device) != LIBINPUT_CONFIG_SCROLL_NO_SCROLL)
-			libinput_device_config_scroll_set_method (libinput_device, scroll_method);
-
-		if (libinput_device_config_click_get_methods(libinput_device) != LIBINPUT_CONFIG_CLICK_METHOD_NONE)
-			libinput_device_config_click_set_method (libinput_device, click_method);
-
-		if (libinput_device_config_send_events_get_modes(libinput_device))
-			libinput_device_config_send_events_set_mode(libinput_device, send_events_mode);
-
-		if (libinput_device_config_accel_is_available(libinput_device)) {
-			libinput_device_config_accel_set_profile(libinput_device, accel_profile);
-			libinput_device_config_accel_set_speed(libinput_device, accel_speed);
-		}
+	if (libinput_device_config_tap_get_finger_count(libinput_device)) {
+		libinput_device_config_tap_set_enabled(libinput_device, tap_to_click);
+		libinput_device_config_tap_set_drag_enabled(
+			libinput_device, tap_and_drag);
+		libinput_device_config_tap_set_drag_lock_enabled(
+			libinput_device, drag_lock);
+		libinput_device_config_tap_set_button_map(libinput_device, button_map);
 	}
 
+	if (libinput_device_config_scroll_has_natural_scroll(libinput_device))
+		libinput_device_config_scroll_set_natural_scroll_enabled(
+			libinput_device,natural_scrolling);
+
+	if (libinput_device_config_dwt_is_available(libinput_device))
+		libinput_device_config_dwt_set_enabled(
+			libinput_device, disable_while_typing);
+
+	if (libinput_device_config_left_handed_is_available(libinput_device))
+		libinput_device_config_left_handed_set(
+			libinput_device, left_handed);
+
+	if (libinput_device_config_middle_emulation_is_available(libinput_device))
+		libinput_device_config_middle_emulation_set_enabled(
+			libinput_device, middle_button_emulation);
+
+	if (libinput_device_config_scroll_get_methods(libinput_device) != LIBINPUT_CONFIG_SCROLL_NO_SCROLL)
+		libinput_device_config_scroll_set_method (
+			libinput_device, scroll_method);
+
+	if (libinput_device_config_click_get_methods(libinput_device) != LIBINPUT_CONFIG_CLICK_METHOD_NONE)
+		libinput_device_config_click_set_method(
+			libinput_device, click_method);
+
+	if (libinput_device_config_send_events_get_modes(libinput_device))
+		libinput_device_config_send_events_set_mode(
+			libinput_device, send_events_mode);
+
+	if (libinput_device_config_accel_is_available(libinput_device)) {
+		libinput_device_config_accel_set_profile(
+			libinput_device, accel_profile);
+		libinput_device_config_accel_set_speed(libinput_device, accel_speed);
+	}
+}
+
+void
+createpointer(struct wlr_pointer *pointer)
+{
+	Pointer *p;
+	if (wlr_input_device_is_libinput(&pointer->base)) {
+		applylibinputrules(&pointer->base);
+		p = ecalloc(1, sizeof(Pointer));
+		p->dev = &pointer->base;
+		LISTEN(&p->dev->events.destroy, &p->destroy, destroypointer);
+		wl_list_insert(&pointers, &p->link);
+	}
 	wlr_cursor_attach_input_device(cursor, &pointer->base);
 }
 
@@ -1281,6 +1318,15 @@ destroynotify(struct wl_listener *listener, void *data)
 	}
 #endif
 	free(c);
+}
+
+void
+destroypointer(struct wl_listener *listener, void *data)
+{
+	Pointer *p = wl_container_of(listener, p, destroy);
+	wl_list_remove(&p->destroy.link);
+	wl_list_remove(&p->link);
+	free(p);
 }
 
 void
@@ -2407,6 +2453,7 @@ setup()
 	 */
 	wl_list_init(&clients);
 	wl_list_init(&fstack);
+	wl_list_init(&pointers);
 	wl_list_init(&dscm_clients);
 
 	idle = wlr_idle_create(dpy);
@@ -3104,7 +3151,6 @@ dscm_printstatusmon(Monitor *m, const DscmMonitor *mon)
 					 numclients, focusedclient);
 	}
 
-	/* TODO: Send id instead? */
 	Layout *l;
 	unsigned int index = 0;
 	wl_list_for_each(l, &layouts, link)
@@ -3152,20 +3198,26 @@ void
 dscm_setlayout(struct wl_client *client, struct wl_resource *resource,
 	       uint32_t layout)
 {
-	/* DscmMonitor *mon; */
-	/* Monitor *m; */
-	/* mon = wl_resource_get_user_data(resource); */
-	/* if (!mon) */
-	/*	return; */
-	/* m = mon->monitor; */
-	/* if (layout >= wl_list_length(&layouts)) */
-	/*	return; */
-	/* if (layout != m->lt[m->sellt] - layouts) */
-	/*	m->sellt ^= 1; */
+	Layout *l;
+	Monitor *m;
+	DscmMonitor *mon;
+	uint32_t index = 0;
+	mon = wl_resource_get_user_data(resource);
+	if (!mon)
+		return;
+	m = mon->monitor;
+	wl_list_for_each(l, &layouts, link) {
+		if (index == layout) {
+			if (l != m->lt[m->sellt])
+				m->sellt ^= 1;
 
-	/* m->lt[m->sellt] = &layouts[layout]; */
-	/* arrange(m); */
-	/* printstatus(); */
+			m->lt[m->sellt] = l;
+			arrange(m);
+			printstatus();
+			return;
+		}
+		index++;
+	}
 }
 
 void
@@ -3213,7 +3265,8 @@ dscm_getmon(struct wl_client *client, struct wl_resource *resource,
 	mon = calloc(1, sizeof(DscmMonitor));
 	mon->resource = dscm_monitor_resource;
 	mon->monitor = m;
-	wl_resource_set_implementation(dscm_monitor_resource, &dscm_monitor_implementation,
+	wl_resource_set_implementation(dscm_monitor_resource,
+				       &dscm_monitor_implementation,
 				       mon, dscm_destroymon);
 	wl_list_insert(&m->dscm, &mon->link);
 	dscm_printstatusmon(m, mon);

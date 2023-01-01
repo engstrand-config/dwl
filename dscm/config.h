@@ -79,6 +79,13 @@ static enum libinput_config_tap_button_map button_map;
 static enum libinput_config_accel_profile accel_profile;
 
 static inline void
+setter_bool(void *cvar, SCM value)
+{
+	DSCM_ASSERT_TYPE(scm_is_bool(value), value, "set", DSCM_ARG2, "bool");
+	(*((unsigned int*)cvar)) = scm_to_bool(value);
+}
+
+static inline void
 setter_uint(void *cvar, SCM value)
 {
 	DSCM_ASSERT_TYPE(scm_is_integer(value), value, "set", DSCM_ARG2, "unsigned int");
@@ -374,6 +381,12 @@ setter_monrule(void *cvar, SCM value)
 	if (!found) {
 		r = calloc(1, sizeof(MonitorRule));
 		r->name = name;
+
+		/* Set sensible defaults just in case some parameters are not set */
+		r->scale = 1;
+		r->rr = WL_OUTPUT_TRANSFORM_NORMAL;
+		r->nmaster = 1;
+		r->mfact = 0.55;
 	}
 
 	scm_dynwind_begin(0);
@@ -437,9 +450,11 @@ setter_monrule(void *cvar, SCM value)
 }
 
 static inline void
-reload_inputdevice()
+reload_libinput()
 {
-	/* reload libinput settings for the current input device */
+	Pointer *p;
+	wl_list_for_each(p, &pointers, link)
+		applylibinputrules(p->dev);
 }
 
 static inline void
@@ -513,7 +528,7 @@ reload_xkb_rules()
 }
 
 static inline void
-reload_keyboard_repeat_info()
+reload_kbrepeat()
 {
 	Keyboard *kb;
 	wl_list_for_each(kb, &keyboards, link)
@@ -523,7 +538,13 @@ reload_keyboard_repeat_info()
 
 static inline void
 reload_layouts()
-{}
+{
+	Layout *l;
+	DscmClient *c;
+	wl_list_for_each(c, &dscm_clients, link)
+	    wl_list_for_each(l, &layouts, link)
+		    dscm_v1_send_layout(c->resource, l->symbol);
+}
 
 static inline void
 reload_rules()
@@ -536,16 +557,50 @@ reload_rules()
 		arrangelayers(m);
 		arrange(m);
 	}
+
+	printstatus();
 }
 
 static inline void
 reload_monrules()
-{}
+{
+	Monitor *m;
+	wl_list_for_each(m, &mons, link)
+		applymonrules(m);
+}
 
 static inline void
 reload_tags()
 {
-	/* TODO: Move clients to new tag if the tag they were on have been removed */
+	Client *c;
+	Monitor *m;
+	DscmClient *dc;
+	unsigned int newtags, update = 0;
+	wl_list_for_each(dc, &dscm_clients, link)
+	    for (int i = 0; i < numtags; i++)
+		    dscm_v1_send_tag(dc->resource, tags[i]);
+	/* TODO: setmon will call printstatus, add flag to disable? */
+	wl_list_for_each(c, &clients, link) {
+		newtags = c->tags & TAGMASK;
+		/* If the client was previosly rendered on a tag outside
+		   of the new tag range, reassign it to the last tag in the
+		   new tag set. */
+		if (c->tags > TAGMASK) {
+			update = 1;
+			c->tags = newtags | (1 << (numtags - 1));
+		}
+	}
+
+	if (update) {
+		wl_list_for_each(m, &mons, link) {
+			newtags = m->tagset[m->seltags] & TAGMASK;
+			if (m->tagset[m->seltags] > TAGMASK)
+				newtags |= (1 << (numtags - 1));
+			m->tagset[m->seltags] = newtags;
+			arrange(m);
+		}
+		printstatus();
+	}
 }
 
 static inline void
@@ -592,65 +647,66 @@ dscm_config_initialize()
 	/* Populate keycode hash table */
 	dscm_keycodes_initialize();
 
-	DSCM_DEFINE (borderpx, "border-px", 1, &setter_uint, &reload_borderpx);
-	DSCM_DEFINE (sloppyfocus, "sloppy-focus", 1, &setter_uint, NULL);
-	DSCM_DEFINE (gappih, "gap-ih", 0, &setter_uint, &reload_gaps);
-	DSCM_DEFINE (gappiv, "gap-iv", 0, &setter_uint, &reload_gaps);
-	DSCM_DEFINE (gappoh, "gap-oh", 0, &setter_uint, &reload_gaps);
-	DSCM_DEFINE (gappov, "gap-ov", 0, &setter_uint, &reload_gaps);
+	DSCM_DEFINE(borderpx, "border-px", 1, &setter_uint, &reload_borderpx);
+	DSCM_DEFINE(gappih, "gap-ih", 0, &setter_uint, &reload_gaps);
+	DSCM_DEFINE(gappiv, "gap-iv", 0, &setter_uint, &reload_gaps);
+	DSCM_DEFINE(gappoh, "gap-oh", 0, &setter_uint, &reload_gaps);
+	DSCM_DEFINE(gappov, "gap-ov", 0, &setter_uint, &reload_gaps);
 
-	DSCM_DEFINE (smartgaps, "smart-gaps", 0, &setter_uint, NULL);
-	DSCM_DEFINE (smartborders, "smart-borders", 0, &setter_uint, NULL);
-	DSCM_DEFINE (default_alpha, "default-alpha", 1.0, &setter_double, NULL);
-	DSCM_DEFINE (bypass_surface_visibility, "bypass-surface-visibility", 1,
+	DSCM_DEFINE(default_alpha, "default-alpha", 1.0, &setter_double, NULL);
+	DSCM_DEFINE(bypass_surface_visibility, "bypass-surface-visibility", 1,
 		     &setter_uint, NULL);
 
-	DSCM_DEFINE (repeat_rate, "repeat-rate", 50,
-		     &setter_uint, &reload_keyboard_repeat_info);
-	DSCM_DEFINE (repeat_delay, "repeat-delay", 300,
-		     &setter_uint, &reload_keyboard_repeat_info);
-	DSCM_DEFINE (xkb_rules, "xkb-rules", NULL, &setter_xkb_rules, &reload_xkb_rules);
+	DSCM_DEFINE(repeat_rate, "repeat-rate", 50, &setter_uint, &reload_kbrepeat);
+	DSCM_DEFINE(repeat_delay, "repeat-delay", 300, &setter_uint, &reload_kbrepeat);
+	DSCM_DEFINE(xkb_rules, "xkb-rules", NULL, &setter_xkb_rules, &reload_xkb_rules);
 
-	DSCM_DEFINE (tap_to_click, "tap-to-click", 1, &setter_uint, &reload_inputdevice);
-	DSCM_DEFINE (tap_and_drag, "tap-and-drag", 1, &setter_uint, &reload_inputdevice);
-	DSCM_DEFINE (drag_lock, "drag-lock", 1, &setter_uint, &reload_inputdevice);
-	DSCM_DEFINE (left_handed, "left-handed", 0, &setter_uint, &reload_inputdevice);
-	DSCM_DEFINE (accel_speed, "accel-speed", 0.0,
-		     &setter_double, &reload_inputdevice);
-	DSCM_DEFINE (natural_scrolling, "natural-scrolling", 0,
-		     &setter_uint, &reload_inputdevice);
-	DSCM_DEFINE (disable_while_typing, "disable-while-typing", 1,
-		     &setter_uint, &reload_inputdevice);
-	DSCM_DEFINE (middle_button_emulation, "middle-button-emulation", 0,
-		     &setter_uint, &reload_inputdevice);
-	DSCM_DEFINE (accel_profile, "accel-profile", LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE,
-		     &setter_uint32, &reload_inputdevice);
-	DSCM_DEFINE (send_events_mode, "send-events-mode", LIBINPUT_CONFIG_SEND_EVENTS_ENABLED,
-		     &setter_uint32, &reload_inputdevice);
-	DSCM_DEFINE (scroll_method, "scroll-method", LIBINPUT_CONFIG_SCROLL_2FG,
-		     &setter_uint32, &reload_inputdevice);
-	DSCM_DEFINE (click_method, "click-method", LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS,
-		     &setter_uint32, &reload_inputdevice);
-	DSCM_DEFINE (button_map, "button-map", LIBINPUT_CONFIG_TAP_MAP_LRM,
-		     &setter_uint32, &reload_inputdevice);
+	DSCM_DEFINE(sloppyfocus, "sloppy-focus?", 1, &setter_bool, NULL);
+	DSCM_DEFINE(smartgaps, "smart-gaps?", 0, &setter_bool, NULL);
+	DSCM_DEFINE(smartborders, "smart-borders?", 0, &setter_bool, NULL);
+	DSCM_DEFINE(tap_to_click, "tap-to-click?", 1, &setter_bool, &reload_libinput);
+	DSCM_DEFINE(tap_and_drag, "tap-and-drag?", 1, &setter_uint, &reload_libinput);
+	DSCM_DEFINE(drag_lock, "drag-lock?", 1, &setter_bool, &reload_libinput);
+	DSCM_DEFINE(left_handed, "left-handed?", 0, &setter_bool, &reload_libinput);
+	DSCM_DEFINE(natural_scrolling, "natural-scrolling?", 0,
+		    &setter_bool, &reload_libinput);
+	DSCM_DEFINE(disable_while_typing, "disable-while-typing?", 1,
+		    &setter_bool, &reload_libinput);
+	DSCM_DEFINE(middle_button_emulation, "middle-button-emulation?", 0,
+		    &setter_bool, &reload_libinput);
 
-	DSCM_DEFINE_P (rootcolor, "root-color",
-		       &setter_color, &reload_rootcolor);
-	DSCM_DEFINE_P (bordercolor, "border-color",
-		       &setter_color, &reload_bordercolor);
-	DSCM_DEFINE_P (focuscolor, "focus-color",
-		       &setter_color, &reload_bordercolor);
-	DSCM_DEFINE_P (fullscreen_bg, "fullscreen-color",
-		       &setter_color, &reload_fullscreen_bg);
-	DSCM_DEFINE_P (lockscreen_bg, "lockscreen-color",
-		       &setter_color, &reload_lockscreen_bg);
+	DSCM_DEFINE(accel_speed, "accel-speed", 0.0,
+		    &setter_double, &reload_libinput);
+	DSCM_DEFINE(accel_profile, "accel-profile",
+		    LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE,
+		    &setter_uint32, &reload_libinput);
+	DSCM_DEFINE(send_events_mode, "send-events-mode",
+		    LIBINPUT_CONFIG_SEND_EVENTS_ENABLED,
+		    &setter_uint32, &reload_libinput);
+	DSCM_DEFINE(scroll_method, "scroll-method",
+		    LIBINPUT_CONFIG_SCROLL_2FG,
+		    &setter_uint32, &reload_libinput);
+	DSCM_DEFINE(click_method, "click-method",
+		    LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS,
+		    &setter_uint32, &reload_libinput);
+	DSCM_DEFINE(button_map, "button-map",
+		    LIBINPUT_CONFIG_TAP_MAP_LRM,
+		    &setter_uint32, &reload_libinput);
 
-	DSCM_DEFINE_P (keys, "keys", &setter_binding, NULL);
-	DSCM_DEFINE_P (buttons, "buttons", &setter_binding, NULL);
-	DSCM_DEFINE_P (tags, "tags", &setter_tags, &reload_tags);
-	DSCM_DEFINE_P (layouts, "layouts", &setter_layout, &reload_layouts);
-	DSCM_DEFINE_P (rules, "rules", &setter_rule, &reload_rules);
-	DSCM_DEFINE_P (monrules, "monrules", &setter_monrule, &reload_monrules);
+	DSCM_DEFINE_P(rootcolor, "root-color", &setter_color, &reload_rootcolor);
+	DSCM_DEFINE_P(bordercolor, "border-color", &setter_color, &reload_bordercolor);
+	DSCM_DEFINE_P(focuscolor, "focus-color", &setter_color, &reload_bordercolor);
+	DSCM_DEFINE_P(fullscreen_bg, "fullscreen-color",
+		      &setter_color, &reload_fullscreen_bg);
+	DSCM_DEFINE_P(lockscreen_bg, "lockscreen-color",
+		      &setter_color, &reload_lockscreen_bg);
+
+	DSCM_DEFINE_P(keys, "keys", &setter_binding, NULL);
+	DSCM_DEFINE_P(buttons, "buttons", &setter_binding, NULL);
+	DSCM_DEFINE_P(tags, "tags", &setter_tags, &reload_tags);
+	DSCM_DEFINE_P(layouts, "layouts", &setter_layout, &reload_layouts);
+	DSCM_DEFINE_P(rules, "rules", &setter_rule, &reload_rules);
+	DSCM_DEFINE_P(monrules, "monrules", &setter_monrule, &reload_monrules);
 }
 
 static inline void
