@@ -606,6 +606,9 @@ reload_tags()
 static inline void
 dscm_config_load()
 {
+	if (firstload)
+		scm_c_primitive_load(PREFIX "/share/dwl-guile.defaults.scm");
+
 	scm_c_primitive_load(config_file);
 
 	if (firstload) {

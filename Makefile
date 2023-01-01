@@ -1,6 +1,6 @@
 include config.mk
 
-CFLAGS += -I. -DWLR_USE_UNSTABLE -D_POSIX_C_SOURCE=200809L -Wno-declaration-after-statement -Wno-unused-label -Wno-error=implicit-function-declaration $(XWAYLAND)
+CFLAGS += -I. -DWLR_USE_UNSTABLE -D_POSIX_C_SOURCE=200809L -Wno-declaration-after-statement -Wno-unused-label -Wno-error=implicit-function-declaration $(XWAYLAND) -DPREFIX=\"$(PREFIX)\"
 
 WAYLAND_PROTOCOLS=$(shell pkg-config --variable=pkgdatadir wayland-protocols)
 WAYLAND_SCANNER=$(shell pkg-config --variable=wayland_scanner wayland-scanner)
