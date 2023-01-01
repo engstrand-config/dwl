@@ -121,6 +121,9 @@ setter_color(void *cvar, SCM value)
 			str++;
 		int len = strlen(str);
 
+		scm_dynwind_begin(0);
+		scm_dynwind_free(str_orig);
+
 		/* Disallows "0x" prefix that strtoul would ignore */
 		DSCM_ASSERT(((len == 6 || len == 8) &&
 			     isxdigit(str[0]) && isxdigit(str[1])),
@@ -139,7 +142,7 @@ setter_color(void *cvar, SCM value)
 		color[0] = ((parsed >> 16) & 0xff) / 255.0;
 		color[1] = ((parsed >>  8) & 0xff) / 255.0;
 		color[2] = ((parsed >>  0) & 0xff) / 255.0;
-		free(str_orig);
+		scm_dynwind_end();
 	} else {
 		int length = scm_to_int(scm_length(value));
 		DSCM_ASSERT(((length >= 3) && (length <= 4)),
@@ -714,4 +717,36 @@ dscm_config_initialize()
 
 static inline void
 dscm_config_cleanup()
-{}
+{
+	Rule *r, *rtmp;
+	Layout *l, *ltmp;
+	Binding *b, *btmp;
+	MonitorRule *mr, *mrtmp;
+	wl_list_for_each_safe(r, rtmp, &rules, link) {
+		if (r->id) free(r->id);
+		if (r->title) free(r->title);
+		free(r);
+	}
+	wl_list_for_each_safe(mr, mrtmp, &monrules, link) {
+		if (mr->name) free(mr->name);
+		free(mr);
+	}
+	wl_list_for_each_safe(l, ltmp, &layouts, link) {
+		if (l->id) free(l->id);
+		if (l->symbol) free(l->symbol);
+		free(l);
+	}
+	wl_list_for_each_safe(b, btmp, &keys, link)
+		free(b);
+	wl_list_for_each_safe(b, btmp, &buttons, link)
+		free(b);
+	for (int i = 0; i < numtags; i++) free(tags[i]);
+	if (xkb_rules != NULL) {
+		if (xkb_rules->rules) free((char*)xkb_rules->rules);
+		if (xkb_rules->model) free((char*)xkb_rules->model);
+		if (xkb_rules->layout) free((char*)xkb_rules->layout);
+		if (xkb_rules->variant) free((char*)xkb_rules->variant);
+		if (xkb_rules->options) free((char*)xkb_rules->options);
+		free(xkb_rules);
+	}
+}
