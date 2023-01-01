@@ -133,6 +133,7 @@ typedef struct {
 typedef struct {
 	unsigned int mod;
 	unsigned int key;
+	unsigned int isbutton;
 	scm_t_bits *action;
 	struct wl_list link;
 } Binding;

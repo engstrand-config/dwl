@@ -89,11 +89,15 @@ dscm_parse_binding_sequence(Binding *b, char *sequence)
 {
 	char *token, *next, *key, *ptr;
 	if ((key = strpbrk(sequence, "<"))) {
-		SCM keycode = scm_hash_ref(
-			keycodes, scm_from_locale_string(key), SCM_UNDEFINED);
+		SCM sym = scm_from_locale_string(key);
+		SCM keycode = scm_hash_ref(keycodes, sym, SCM_UNDEFINED);
+		if (scm_is_false(keycode)) {
+			b->isbutton = 1;
+			keycode = scm_hash_ref(keycodes_mouse, sym, SCM_UNDEFINED);
+		}
 		DSCM_ASSERT((!scm_is_false(keycode)),
-			    "Invalid keysym in bind sequence: ~s",
-			    scm_from_locale_string(sequence));
+			    "Invalid keysym ~s in bind sequence: ~s",
+			    sym, scm_from_locale_string(sequence));
 		b->key = (xkb_keycode_t)scm_to_uint32(keycode);
 	} else if ((key = strpbrk(sequence, "["))) {
 		for (ptr = &key[1]; !(*ptr == '\0' || *ptr == ']'); ptr++)
@@ -129,11 +133,11 @@ dscm_parse_binding_sequence(Binding *b, char *sequence)
 					    scm_from_locale_string(token),
 					    scm_from_locale_string(sequence));
 		} else {
-			SCM keycode = scm_hash_ref(
-				keycodes, scm_from_locale_string(token), SCM_UNDEFINED);
+			SCM sym = scm_from_locale_string(token);
+			SCM keycode = scm_hash_ref(keycodes, sym, SCM_UNDEFINED);
 			DSCM_ASSERT((!scm_is_false(keycode)),
-				    "Invalid keysym in bind sequence: ~s",
-				    scm_from_locale_string(sequence));
+				    "Invalid keysym ~s in bind sequence: ~s",
+				    sym, scm_from_locale_string(sequence));
 			b->key = (xkb_keycode_t)scm_to_uint32(keycode);
 		}
 		token = next;

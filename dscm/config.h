@@ -210,8 +210,6 @@ static inline void
 setter_binding(void *cvar, SCM value)
 {
 	Binding tmp, *b;
-	struct wl_list *lst = cvar;
-
 	SCM sequence = scm_car(value);
 	SCM action = scm_cadr(value);
 
@@ -219,14 +217,17 @@ setter_binding(void *cvar, SCM value)
 			 value, "bind", DSCM_ARG2, "string");
 	DSCM_ASSERT_TYPE(dscm_is_callback(action),
 			 value, "bind", DSCM_ARG3, "symbol or procedure");
+	tmp.isbutton = 0;
 
 	/* Attempt to parse before any allocation */
 	dscm_parse_binding_sequence(&tmp, scm_to_locale_string(sequence));
 
+	struct wl_list *lst = tmp.isbutton ? &buttons : &keys;
 	wl_list_for_each(b, lst, link) {
 		if (b->key == tmp.key && b->mod == tmp.mod) {
 			b->key = tmp.key;
 			b->mod = tmp.mod;
+			b->isbutton = tmp.isbutton;
 			b->action = dscm_get_pointer(action);
 			return;
 		}
@@ -235,6 +236,7 @@ setter_binding(void *cvar, SCM value)
 	b = calloc(1, sizeof(Binding));
 	b->key = tmp.key;
 	b->mod = tmp.mod;
+	b->isbutton = tmp.isbutton;
 	b->action = dscm_get_pointer(action);
 	wl_list_insert(lst, &b->link);
 }
@@ -709,8 +711,8 @@ dscm_config_initialize()
 	DSCM_DEFINE_P(lockscreen_bg, "lockscreen-color",
 		      &setter_color, &reload_lockscreen_bg);
 
-	DSCM_DEFINE_P(keys, "keys", &setter_binding, NULL);
-	DSCM_DEFINE_P(buttons, "buttons", &setter_binding, NULL);
+	DSCM_DEFINE_P(keys, "bindings", &setter_binding, NULL);
+	DSCM_DEFINE_P(buttons, "bindings", &setter_binding, NULL);
 	DSCM_DEFINE_P(tags, "tags", &setter_tags, &reload_tags);
 	DSCM_DEFINE_P(layouts, "layouts", &setter_layout, &reload_layouts);
 	DSCM_DEFINE_P(rules, "rules", &setter_rule, &reload_rules);

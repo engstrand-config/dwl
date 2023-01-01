@@ -4,8 +4,7 @@
 (dwl:bind-ttys "C-M")
 (dwl:bind-tags "s" "s-S")
 
-(bind 'keys
-      "s-d" (lambda () (dwl:spawn "bemenu-run"))
+(bind "s-d" (lambda () (dwl:spawn "bemenu-run"))
       "s-<return>" (lambda () (dwl:spawn "foot"))
       "s-j" (lambda () (dwl:focus-stack 1))
       "s-k" (lambda () (dwl:focus-stack -1))
@@ -18,9 +17,7 @@
       "s-f" 'dwl:toggle-fullscreen
       "S-s-<space>" 'dwl:toggle-floating
       "S-s-<escape>" 'dwl:quit
-      "<XF86PowerOff>" 'dwl:quit)
-
-(bind 'buttons
+      "<XF86PowerOff>" 'dwl:quit
       "s-<mouse-left>" 'dwl:move
       "s-<mouse-middle>" 'dwl:toggle-floating
       "s-<mouse-right>" 'dwl:resize)
