@@ -499,6 +499,7 @@ static Atom netatom[NetLast];
 #include "dscm/ipc.h"
 #include "dscm/keycodes.h"
 #include "dscm/utils.h"
+#include "dscm/hooks.h"
 #include "dscm/config.h"
 #include "dscm/bindings.h"
 
@@ -3346,11 +3347,13 @@ main(int argc, char *argv[])
 		die("error: config path must be set using '-c'");
 	scm_init_guile();
 	dscm_register();
+	dscm_hooks_initialize();
 	dscm_config_initialize();
 	dscm_config_load();
 	setup();
 	writepid(runtimedir);
 	run(startup_cmd);
+	scm_run_hook(hook_quit, scm_list_n(SCM_UNDEFINED));
 	dscm_config_cleanup();
 	cleanup();
 	return EXIT_SUCCESS;

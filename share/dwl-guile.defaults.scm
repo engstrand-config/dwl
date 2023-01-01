@@ -1,3 +1,15 @@
+;; Helper method for starting a REPL server listening on UNIX socket.
+(define (dwl:start-repl-server)
+  (define socket "/tmp/dwl-guile.socket")
+  (begin
+    (use-modules (system repl server))
+    (when (file-exists? socket) (delete-file socket))
+    (spawn-server (make-unix-domain-server-socket #:path socket))
+    (add-hook! dwl:hook-quit
+               (lambda ()
+                 (delete-file socket)
+                 (stop-server-and-clients!)))))
+
 (set 'tags (map number->string (iota 9 1)))
 
 (set-layouts 'tile "[]=" 'dwl:tile)
