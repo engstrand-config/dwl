@@ -13,6 +13,12 @@
 	DSCM_ASSERT(PRED, SUBR ": Wrong type argument in position " ARG \
 		    " (expected " TYPE "): ~a", VALUE)
 
+#define DSCM_SET_REST(SUBR, REST, NUM)					\
+	int length = scm_to_int(scm_length(REST));			\
+	DSCM_ASSERT((length % NUM == 0),				\
+		    SUBR ": Invalid number of (rest) arguments: ~a", REST); \
+	for (int i = 0; i < length; i += NUM)
+
 enum { DSCM_CALL_ARRANGE, DSCM_CALL_ACTION };
 typedef struct {
 	SCM proc;
@@ -27,6 +33,18 @@ typedef struct {
 
 typedef void(*dscm_reloader_t)();
 typedef void(*dscm_setter_t)(void*, SCM);
+
+static inline SCM
+dscm_list_ref(SCM list, int index)
+{
+	return scm_list_ref(list, scm_from_int(index));
+}
+
+static inline SCM
+dscm_string_to_symbol(const char *str)
+{
+	return scm_string_to_symbol(scm_from_locale_string(str));
+}
 
 static inline int
 dscm_is_callback(SCM cb)

@@ -295,65 +295,78 @@ dscm_binding_defaultgaps()
 }
 
 static inline SCM
-dscm_binding_set(SCM key, SCM value)
+dscm_binding_set(SCM rest)
 {
-	SCM meta = scm_hash_ref(metadata, key, SCM_UNDEFINED);
-	DSCM_ASSERT_TYPE(!scm_is_false(meta), key, "set", DSCM_ARG1, "symbol");
+	DSCM_SET_REST("set", rest, 2) {
+		SCM key = dscm_list_ref(rest, i);
+		SCM meta = scm_hash_ref(metadata, key, SCM_UNDEFINED);
+		DSCM_ASSERT_TYPE(!scm_is_false(meta), key, "set", DSCM_ARG1, "symbol");
 
-	void *cvar = scm_to_pointer(scm_car(meta));
-	dscm_setter_t setter = (dscm_setter_t)scm_to_pointer(scm_cadr(meta));
-	(*setter)(cvar, value);
+		dscm_reloader_t func;
+		void *cvar = scm_to_pointer(scm_car(meta));
+		dscm_setter_t setter = (dscm_setter_t)scm_to_pointer(scm_cadr(meta));
+		(*setter)(cvar, dscm_list_ref(rest, i + 1));
 
-	/* When parsing the config for the first time, there is no need to
-	   manually reload the updated configuration parameter, since this
-	   will be done automatically right after.*/
-	if (!firstload) {
-		SCM reloader = scm_caddr(meta);
-		if (!scm_is_false(reloader)) {
-			dscm_reloader_t func = (dscm_reloader_t)scm_to_pointer(reloader);
-			(*func)();
+		/* When parsing the config for the first time, there is no need to
+		   manually reload the updated configuration parameter, since this
+		   will be done automatically right after.*/
+		if (!firstload) {
+			SCM reloader = scm_caddr(meta);
+			if (!scm_is_false(reloader)) {
+				func = (dscm_reloader_t)scm_to_pointer(reloader);
+				(*func)();
+			}
 		}
 	}
-
 	return SCM_BOOL_T;
 }
 
 /* TODO: Remove list argument */
 static inline SCM
-dscm_binding_bind(SCM list, SCM sequence, SCM action)
+dscm_binding_bind(SCM list, SCM rest)
 {
-	DSCM_ASSERT_TYPE(scm_is_symbol(list),
-			 list, "bind", DSCM_ARG1, "symbol");
-	dscm_binding_set(list, scm_list_2(sequence, action));
+	DSCM_ASSERT_TYPE(scm_is_symbol(list), list, "bind", DSCM_ARG1, "symbol");
+	DSCM_SET_REST("bind", rest, 2)
+		dscm_binding_set(
+			scm_list_2(list, scm_list_2(dscm_list_ref(rest, i),
+						    dscm_list_ref(rest, i + 1))));
 	return SCM_BOOL_T;
 }
 
 static inline SCM
-dscm_binding_setlayouts(SCM id, SCM symbol, SCM arrange)
+dscm_binding_setlayouts(SCM rest)
 {
-	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("layouts")),
-			 scm_list_3(id, symbol, arrange));
+	SCM list = dscm_string_to_symbol("layouts");
+	DSCM_SET_REST("set-layouts", rest, 3)
+		dscm_binding_set(
+			scm_list_2(list, scm_list_3(dscm_list_ref(rest, i),
+						    dscm_list_ref(rest, i + 1),
+						    dscm_list_ref(rest, i + 2))));
 	return SCM_BOOL_T;
 }
 
 static inline SCM
-dscm_binding_setrules(SCM rule)
+dscm_binding_setrules(SCM rest)
 {
-	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("rules")), rule);
+	SCM list = dscm_string_to_symbol("rules");
+	DSCM_SET_REST("set-rules", rest, 1)
+		dscm_binding_set(scm_list_2(list, dscm_list_ref(rest, i)));
 	return SCM_BOOL_T;
 }
 
 static inline SCM
-dscm_binding_setmonrules(SCM rule)
+dscm_binding_setmonrules(SCM rest)
 {
-	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("monrules")), rule);
+	SCM list = dscm_string_to_symbol("monrules");
+	DSCM_SET_REST("set-monitor-rules", rest, 1)
+		dscm_binding_set(scm_list_2(list, dscm_list_ref(rest, i)));
 	return SCM_BOOL_T;
 }
 
 static inline SCM
 dscm_binding_setxkbrules(SCM xkb)
 {
-	dscm_binding_set(scm_string_to_symbol(scm_from_locale_string("xkb-rules")), xkb);
+	dscm_binding_set(scm_list_2(dscm_string_to_symbol("xkb-rules"), xkb));
 	return SCM_BOOL_T;
 }
 
@@ -453,10 +466,10 @@ dscm_register()
 
 	/* dwl-guile specific bindings */
 	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_config_load);
-	scm_c_define_gsubr("set", 2, 0, 0, &dscm_binding_set);
-	scm_c_define_gsubr("bind", 3, 0, 0, &dscm_binding_bind);
-	scm_c_define_gsubr("set-layouts", 3, 0, 0, &dscm_binding_setlayouts);
-	scm_c_define_gsubr("set-rules", 1, 0, 0, &dscm_binding_setrules);
-	scm_c_define_gsubr("set-monitor-rules", 1, 0, 0, &dscm_binding_setmonrules);
+	scm_c_define_gsubr("set", 0, 0, 1, &dscm_binding_set);
+	scm_c_define_gsubr("bind", 1, 0, 1, &dscm_binding_bind);
+	scm_c_define_gsubr("set-layouts", 0, 0, 1, &dscm_binding_setlayouts);
+	scm_c_define_gsubr("set-rules", 0, 0, 1, &dscm_binding_setrules);
+	scm_c_define_gsubr("set-monitor-rules", 0, 0, 1, &dscm_binding_setmonrules);
 	scm_c_define_gsubr("set-xkb-rules", 1, 0, 0, &dscm_binding_setxkbrules);
 }
