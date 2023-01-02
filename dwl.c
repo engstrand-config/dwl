@@ -381,10 +381,6 @@ static void setgaps(int oh, int ov, int ih, int iv);
 static void incrgaps(const Arg *arg);
 static void incrigaps(const Arg *arg);
 static void incrogaps(const Arg *arg);
-static void incrohgaps(const Arg *arg);
-static void incrovgaps(const Arg *arg);
-static void incrihgaps(const Arg *arg);
-static void incrivgaps(const Arg *arg);
 static void togglegaps(const Arg *arg);
 static void defaultgaps(const Arg *arg);
 
@@ -2144,6 +2140,7 @@ setcursor(struct wl_listener *listener, void *data)
 		wlr_cursor_set_surface(cursor, event->surface,
 				       event->hotspot_x, event->hotspot_y);
 }
+
 void
 setgaps(int oh, int ov, int ih, int iv)
 {
@@ -2152,18 +2149,23 @@ setgaps(int oh, int ov, int ih, int iv)
 	if (ih < 0) ih = 0;
 	if (iv < 0) iv = 0;
 
-	selmon->gappoh = oh;
-	selmon->gappov = ov;
-	selmon->gappih = ih;
-	selmon->gappiv = iv;
-	arrange(selmon);
+	Monitor *m;
+	wl_list_for_each(m, &mons, link) {
+		m->gappoh = oh;
+		m->gappov = ov;
+		m->gappih = ih;
+		m->gappiv = iv;
+		arrange(selmon);
+	}
 }
 
 void
 togglegaps(const Arg *arg)
 {
 	enablegaps = !enablegaps;
-	arrange(selmon);
+	Monitor *m;
+	wl_list_for_each(m, &mons, link)
+		arrange(m);
 }
 
 void
@@ -2175,78 +2177,28 @@ defaultgaps(const Arg *arg)
 void
 incrgaps(const Arg *arg)
 {
-	setgaps(
-		selmon->gappoh + arg->i,
+	setgaps(selmon->gappoh + arg->i,
 		selmon->gappov + arg->i,
 		selmon->gappih + arg->i,
-		selmon->gappiv + arg->i
-		);
+		selmon->gappiv + arg->i);
 }
 
 void
 incrigaps(const Arg *arg)
 {
-	setgaps(
-		selmon->gappoh,
+	setgaps(selmon->gappoh,
 		selmon->gappov,
 		selmon->gappih + arg->i,
-		selmon->gappiv + arg->i
-		);
+		selmon->gappiv + arg->i);
 }
 
 void
 incrogaps(const Arg *arg)
 {
-	setgaps(
-		selmon->gappoh + arg->i,
+	setgaps(selmon->gappoh + arg->i,
 		selmon->gappov + arg->i,
 		selmon->gappih,
-		selmon->gappiv
-		);
-}
-
-void
-incrohgaps(const Arg *arg)
-{
-	setgaps(
-		selmon->gappoh + arg->i,
-		selmon->gappov,
-		selmon->gappih,
-		selmon->gappiv
-		);
-}
-
-void
-incrovgaps(const Arg *arg)
-{
-	setgaps(
-		selmon->gappoh,
-		selmon->gappov + arg->i,
-		selmon->gappih,
-		selmon->gappiv
-		);
-}
-
-void
-incrihgaps(const Arg *arg)
-{
-	setgaps(
-		selmon->gappoh,
-		selmon->gappov,
-		selmon->gappih + arg->i,
-		selmon->gappiv
-		);
-}
-
-void
-incrivgaps(const Arg *arg)
-{
-	setgaps(
-		selmon->gappoh,
-		selmon->gappov,
-		selmon->gappih,
-		selmon->gappiv + arg->i
-		);
+		selmon->gappiv);
 }
 
 void
@@ -2626,26 +2578,26 @@ tile(Monitor *m)
 		enableborders = 0;
 
 	if (n > m->nmaster)
-		mw = m->nmaster ? (m->w.width + m->gappiv*ie) * m->mfact : 0;
+		mw = m->nmaster ? (m->w.width + m->gappih*ie) * m->mfact : 0;
 	else
-		mw = m->w.width - 2*m->gappov*oe + m->gappiv*ie;
+		mw = m->w.width - 2*m->gappoh*oe + m->gappih*ie;
 	i = 0;
-	my = ty = m->gappoh*oe;
+	my = ty = m->gappov*oe;
 	wl_list_for_each(c, &clients, link) {
 		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
 			continue;
 		if (i < m->nmaster) {
 			r = MIN(n, m->nmaster) - i;
-			h = (m->w.height - my - m->gappoh*oe - m->gappih*ie * (r - 1)) / r;
-			resize(c, (struct wlr_box){.x = m->w.x + m->gappov*oe, .y = m->w.y + my, .width = mw - m->gappiv*ie,
+			h = (m->w.height - my - m->gappov*oe - m->gappiv*ie * (r - 1)) / r;
+			resize(c, (struct wlr_box){.x = m->w.x + m->gappoh*oe, .y = m->w.y + my, .width = mw - m->gappih*ie,
 					.height = h}, 0, enableborders);
-			my += c->geom.height + m->gappih*ie;
+			my += c->geom.height + m->gappiv*ie;
 		} else {
 			r = n - i;
-			h = (m->w.height - ty - m->gappoh*oe - m->gappih*ie * (r - 1)) / r;
-			resize(c, (struct wlr_box){.x = m->w.x + mw + m->gappov*oe, .y = m->w.y + ty,
-					.width = m->w.width - mw - 2*m->gappov*oe, .height = h}, 0, enableborders);
-			ty += c->geom.height + m->gappih*ie;
+			h = (m->w.height - ty - m->gappov*oe - m->gappiv*ie * (r - 1)) / r;
+			resize(c, (struct wlr_box){.x = m->w.x + mw + m->gappoh*oe, .y = m->w.y + ty,
+					.width = m->w.width - mw - 2*m->gappoh*oe, .height = h}, 0, enableborders);
+			ty += c->geom.height + m->gappiv*ie;
 		}
 		i++;
 	}

@@ -476,12 +476,7 @@ reload_borderpx()
 static inline void
 reload_gaps()
 {
-	Monitor *m;
-	/* Rearrange clients on all monitors */
-	wl_list_for_each(m, &mons, link) {
-		defaultgaps(NULL);
-		arrange(m);
-	}
+	defaultgaps(NULL);
 }
 
 static inline void
@@ -662,10 +657,10 @@ dscm_config_initialize()
 
 	DSCM_DEFINE(inhibdef, "inhibit-defaults?", 0, &setter_bool, NULL);
 	DSCM_DEFINE(borderpx, "border-px", 1, &setter_uint, &reload_borderpx);
-	DSCM_DEFINE(gappih, "gap-ih", 0, &setter_uint, &reload_gaps);
-	DSCM_DEFINE(gappiv, "gap-iv", 0, &setter_uint, &reload_gaps);
-	DSCM_DEFINE(gappoh, "gap-oh", 0, &setter_uint, &reload_gaps);
-	DSCM_DEFINE(gappov, "gap-ov", 0, &setter_uint, &reload_gaps);
+	DSCM_DEFINE(gappih, "gaps-ih", 0, &setter_uint, &reload_gaps);
+	DSCM_DEFINE(gappiv, "gaps-iv", 0, &setter_uint, &reload_gaps);
+	DSCM_DEFINE(gappoh, "gaps-oh", 0, &setter_uint, &reload_gaps);
+	DSCM_DEFINE(gappov, "gaps-ov", 0, &setter_uint, &reload_gaps);
 
 	DSCM_DEFINE(default_alpha, "default-alpha", 1.0, &setter_double, NULL);
 	DSCM_DEFINE(bypass_surface_visibility, "bypass-surface-visibility", 1,

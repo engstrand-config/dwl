@@ -455,13 +455,9 @@ dscm_register()
 	scm_c_define_gsubr("dwl:change-alpha", 1, 0, 0, &dscm_binding_changealpha);
 	scm_c_define_gsubr("dwl:toggle-gaps", 0, 0, 0, &dscm_binding_togglegaps);
 	scm_c_define_gsubr("dwl:default-gaps", 0, 0, 0, &dscm_binding_defaultgaps);
-	scm_c_define_gsubr("dwl:gaps", 1, 0, 0, &dscm_binding_incrgaps);
-	scm_c_define_gsubr("dwl:gaps-inner", 1, 0, 0, &dscm_binding_incrigaps);
-	scm_c_define_gsubr("dwl:gaps-outer", 1, 0, 0, &dscm_binding_incrogaps);
-	scm_c_define_gsubr("dwl:gaps-inner-horizontal", 1, 0, 0, &dscm_binding_incrihgaps);
-	scm_c_define_gsubr("dwl:gaps-inner-vertical", 1, 0, 0, &dscm_binding_incrivgaps);
-	scm_c_define_gsubr("dwl:gaps-outer-horizontal", 1, 0, 0, &dscm_binding_incrohgaps);
-	scm_c_define_gsubr("dwl:gaps-outer-vertical", 1, 0, 0, &dscm_binding_incrovgaps);
+	scm_c_define_gsubr("dwl:change-gaps", 1, 0, 0, &dscm_binding_incrgaps);
+	scm_c_define_gsubr("dwl:change-gaps-inner", 1, 0, 0, &dscm_binding_incrigaps);
+	scm_c_define_gsubr("dwl:change-gaps-outer", 1, 0, 0, &dscm_binding_incrogaps);
 
 	/* dwl-guile specific bindings */
 	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_config_load);
