@@ -441,7 +441,6 @@ dscm_register()
 	scm_c_define_gsubr("dwl:cycle-layout", 0, 1, 0, &dscm_binding_cyclelayout);
 	scm_c_define_gsubr("dwl:toggle-tag", 1, 0, 0, &dscm_binding_toggletag);
 	scm_c_define_gsubr("dwl:focus-stack", 1, 0, 0, &dscm_binding_focusstack);
-	scm_c_define_gsubr("dwl:set-master-factor", 1, 0, 0, &dscm_binding_setmfact);
 	scm_c_define_gsubr("dwl:zoom", 0, 0, 0, &dscm_binding_zoom);
 	scm_c_define_gsubr("dwl:set-layout", 1, 0, 0, &dscm_binding_setlayout);
 	scm_c_define_gsubr("dwl:toggle-fullscreen", 0, 0, 0, &dscm_binding_togglefullscreen);
@@ -450,7 +449,8 @@ dscm_register()
 	scm_c_define_gsubr("dwl:tag-monitor", 1, 0, 0, &dscm_binding_tagmon);
 	scm_c_define_gsubr("dwl:move", 0, 0, 0, &dscm_binding_move);
 	scm_c_define_gsubr("dwl:resize", 0, 0, 0, &dscm_binding_resize);
-	scm_c_define_gsubr("dwl:set-masters", 1, 0, 0, &dscm_binding_incnmaster);
+	scm_c_define_gsubr("dwl:change-masters", 1, 0, 0, &dscm_binding_incnmaster);
+	scm_c_define_gsubr("dwl:change-master-factor", 1, 0, 0, &dscm_binding_setmfact);
 	scm_c_define_gsubr("dwl:shcmd", 0, 0, 1, &dscm_binding_shcmd);
 	scm_c_define_gsubr("dwl:change-alpha", 1, 0, 0, &dscm_binding_changealpha);
 	scm_c_define_gsubr("dwl:toggle-gaps", 0, 0, 0, &dscm_binding_togglegaps);

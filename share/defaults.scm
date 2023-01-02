@@ -8,8 +8,10 @@
       "s-<return>" '(dwl:spawn "foot")
       "s-j" '(dwl:focus-stack 1)
       "s-k" '(dwl:focus-stack -1)
-      "s-l" '(dwl:set-master-factor 0.05)
-      "s-h" '(dwl:set-master-factor -0.05)
+      "s-l" '(dwl:change-master-factor 0.05)
+      "s-h" '(dwl:change-master-factor -0.05)
+      "s-<page-up>" '(dwl:change-masters 1)
+      "s-<page-down>" '(dwl:change-masters -1)
       "s-t" '(dwl:cycle-layout 1)
       "s-<left>" '(dwl:focus-monitor 'DIRECTION-LEFT)
       "s-<right>" '(dwl:focus-monitor 'DIRECTION-RIGHT)
@@ -22,6 +24,7 @@
       "s-q" 'dwl:kill-client
       "s-<space>" 'dwl:zoom
       "s-<tab>" 'dwl:view
+      "s-S-0" '(dwl:view 0) ;; 0 will show all tags
       "s-f" 'dwl:toggle-fullscreen
       "S-s-<space>" 'dwl:toggle-floating
       "S-s-<escape>" 'dwl:quit

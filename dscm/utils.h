@@ -84,10 +84,13 @@ dscm_get_pointer(SCM action)
 }
 
 static inline unsigned int
-dscm_get_tag(SCM tag, unsigned int tags)
+dscm_get_tag(SCM tag, unsigned int max)
 {
-	unsigned int target_tag = scm_to_unsigned_integer(tag, 1, tags) - 1;
-	return (1 << target_tag);
+	unsigned int target_tag = scm_to_unsigned_integer(tag, 0, max);
+	if (target_tag == 0)
+		return ~0;
+	else
+		return (1 << (target_tag - 1));
 }
 
 static inline void

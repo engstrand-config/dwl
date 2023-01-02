@@ -114,11 +114,13 @@ dscm_keycodes_initialize()
 	scm_hash_set_x(keycodes, scm_from_locale_string("<home>"), scm_from_int(110));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<up>"), scm_from_int(111));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<prior>"), scm_from_int(112));
+	scm_hash_set_x(keycodes, scm_from_locale_string("<page-up>"), scm_from_int(112));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<left>"), scm_from_int(113));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<right>"), scm_from_int(114));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<end>"), scm_from_int(115));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<down>"), scm_from_int(116));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<next>"), scm_from_int(117));
+	scm_hash_set_x(keycodes, scm_from_locale_string("<page-down>"), scm_from_int(117));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<insert>"), scm_from_int(118));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<delete>"), scm_from_int(119));
 	scm_hash_set_x(keycodes, scm_from_locale_string("<XF86AudioMute>"), scm_from_int(121));
