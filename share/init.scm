@@ -13,15 +13,14 @@
 (define (dwl:bind-ttys modifiers)
   (for-each
    (lambda (v)
-     (bind (string-append modifiers "-<F" (number->string v) ">")
-           (lambda () (dwl:chvt v))))
+     (bind (string-append modifiers "-<F" (number->string v) ">") `(dwl:chvt ,v)))
    (iota 12 1)))
 
 (define (dwl:bind-tags view-modifiers move-modifiers)
   (for-each
    (lambda (t)
-     (bind (string-append view-modifiers "-" (number->string t)) (lambda () (dwl:view t))
-           (string-append move-modifiers "-" (number->string t)) (lambda () (dwl:tag t))))
+     (bind (string-append view-modifiers "-" (number->string t)) `(dwl:view ,t)
+           (string-append move-modifiers "-" (number->string t)) `(dwl:tag ,t)))
    (iota 9 1)))
 
 ;; Set required options.

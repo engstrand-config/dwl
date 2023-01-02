@@ -216,7 +216,7 @@ setter_binding(void *cvar, SCM value)
 	DSCM_ASSERT_TYPE(scm_is_string(sequence),
 			 value, "bind", DSCM_ARG2, "string");
 	DSCM_ASSERT_TYPE(dscm_is_callback(action),
-			 value, "bind", DSCM_ARG3, "symbol or procedure");
+			 value, "bind", DSCM_ARG3, "symbol, procedure or sexp");
 	tmp.isbutton = 0;
 
 	/* Attempt to parse before any allocation */

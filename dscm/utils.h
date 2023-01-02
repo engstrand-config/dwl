@@ -49,7 +49,10 @@ dscm_string_to_symbol(const char *str)
 static inline int
 dscm_is_callback(SCM cb)
 {
-	return scm_is_symbol(cb) || scm_procedure_p(cb) == SCM_BOOL_T;
+	return (scm_is_symbol(cb) ||
+		scm_is_true(scm_procedure_p(cb)) ||
+		/* General quoted expressions are treated as lists */
+		scm_is_true(scm_list_p(cb)));
 }
 
 static inline SCM
@@ -70,9 +73,12 @@ dscm_assoc_ref_string(SCM alist, const char *symbol)
 static inline scm_t_bits *
 dscm_get_pointer(SCM action)
 {
-	SCM actionref = scm_primitive_eval(action);
-	DSCM_ASSERT((scm_procedure_p(actionref) == SCM_BOOL_T),
-		    "Invalid action callback: ~s", action);
+	SCM actionref = action;
+	if (scm_is_false(scm_list_p(action))) {
+		actionref = scm_primitive_eval(action);
+		DSCM_ASSERT(scm_is_true(scm_procedure_p(actionref)),
+			    "Invalid action callback: ~s", actionref);
+	}
 	scm_gc_protect_object(actionref);
 	return SCM_UNPACK_POINTER(actionref);
 }
@@ -182,7 +188,10 @@ dscm_call_thread_handler(void *data, SCM key, SCM args)
 static inline void*
 dscm_call_action(void *data)
 {
-	return scm_call_0(((dscm_call_data_t*)data)->proc);
+	dscm_call_data_t *call_data = data;
+	if (scm_is_true(scm_list_p(call_data->proc)))
+		return scm_primitive_eval(call_data->proc);
+	return scm_call_0(call_data->proc);
 }
 
 static inline void*
