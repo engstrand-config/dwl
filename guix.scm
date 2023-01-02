@@ -1,5 +1,4 @@
-(use-modules (dwl-guile packages)
-             (guix gexp)
+(use-modules (guix gexp)
              (guix utils)
              (guix packages)
              (guix download)
