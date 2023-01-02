@@ -23,7 +23,7 @@
 		DSCM_DEFINE_P(CVAR, KEY, SETTER, RELOADER);	\
 	}
 
-SCM metadata;
+static SCM metadata;
 
 /* Set to 0 after the initial config load */
 static unsigned int firstload = 1;
@@ -651,10 +651,14 @@ dscm_config_initialize()
 	wl_list_init(&rules);
 	wl_list_init(&monrules);
 
+	scm_permanent_object(metadata);
 	metadata = scm_make_hash_table(scm_from_int(1));
 
 	/* Populate keycode hash table */
 	dscm_keycodes_initialize();
+
+	/* Expose configuration option metadata */
+	scm_c_define("%_DWL_METADATA", metadata);
 
 	DSCM_DEFINE(inhibdef, "inhibit-defaults?", 0, &setter_bool, NULL);
 	DSCM_DEFINE(borderpx, "border-px", 1, &setter_uint, &reload_borderpx);

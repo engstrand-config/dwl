@@ -1,12 +1,19 @@
 /* Mapping key names to keycodes. */
-SCM keycodes;
-SCM keycodes_mouse;
+static SCM keycodes;
+static SCM keycodes_mouse;
 
 static inline void
 dscm_keycodes_initialize()
 {
+	scm_permanent_object(keycodes);
+	scm_permanent_object(keycodes_mouse);
+
 	keycodes = scm_make_hash_table(scm_from_int(211));
 	keycodes_mouse = scm_make_hash_table(scm_from_int(3));
+
+	/* Expose keycodes */
+	scm_c_define("%_DWL_KEYCODES", keycodes);
+	scm_c_define("%_DWL_KEYCODES_MOUSE", keycodes_mouse);
 
 	scm_hash_set_x(keycodes, scm_from_locale_string("<escape>"), scm_from_int(9));
 	scm_hash_set_x(keycodes, scm_from_locale_string("1"), scm_from_int(10));
