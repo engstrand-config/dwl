@@ -2103,6 +2103,9 @@ run(char *startup_cmd)
 	signal(SIGPIPE, SIG_IGN);
 	printstatus();
 
+	/* Run startup hooks in new thread to prevent blocking of dwl startup */
+	dscm_hooks_run_async(hook_startup);
+
 	/* At this point the outputs are initialized, choose initial selmon based on
 	 * cursor position, and set default cursor image */
 	selmon = xytomon(cursor->x, cursor->y);
@@ -3354,7 +3357,7 @@ main(int argc, char *argv[])
 	setup();
 	writepid(runtimedir);
 	run(startup_cmd);
-	scm_run_hook(hook_quit, scm_list_n(SCM_UNDEFINED));
+	dscm_hooks_run(hook_quit);
 	dscm_config_cleanup();
 	cleanup();
 	return EXIT_SUCCESS;
