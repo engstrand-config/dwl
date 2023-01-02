@@ -1,3 +1,5 @@
+(define %dwl:repl-socket-path "/tmp/dwl-guile.socket")
+
 (define* (dwl:start-repl-server)
   "Starts a local Guile REPL server, listening on a UNIX socket at path
 @path{/tmp/dwl-guile.socket}. This REPL allows you to execute expressions
@@ -11,14 +13,14 @@ specifying the UNIX-socket path.
 Note that this needs to be explicitly called in order for the REPL server to
 be started!
 "
-  (define socket "/tmp/dwl-guile.socket")
   (begin
     (use-modules (system repl server))
-    (when (file-exists? socket) (delete-file socket))
-    (spawn-server (make-unix-domain-server-socket #:path socket))
+    (when (file-exists? %dwl:repl-socket-path)
+      (delete-file %dwl:repl-socket-path))
+    (spawn-server (make-unix-domain-server-socket #:path %dwl:repl-socket-path))
     (add-hook! dwl:hook-quit
                (lambda ()
-                 (delete-file socket)
+                 (delete-file %dwl:repl-socket-path)
                  (stop-server-and-clients!)))))
 
 (define* (dwl:list-options)
