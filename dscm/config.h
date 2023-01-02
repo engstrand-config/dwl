@@ -392,6 +392,8 @@ setter_monrule(void *cvar, SCM value)
 		r->rr = WL_OUTPUT_TRANSFORM_NORMAL;
 		r->nmaster = 1;
 		r->mfact = 0.55;
+		/* init.scm will always define a layout, so this will always work */
+		r->lt = wl_container_of(layouts.next, r->lt, link);
 	}
 
 	scm_dynwind_begin(0);
@@ -444,8 +446,6 @@ setter_monrule(void *cvar, SCM value)
 				break;
 			}
 		}
-	} else {
-		r->lt = wl_container_of(layouts.next, r->lt, link);
 	}
 
 	if (!found)

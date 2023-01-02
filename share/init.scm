@@ -81,6 +81,8 @@ VIEW-MODIFIERS, and MOVE-MODIFIERS, respectively."
 ;; Set required options.
 ;; These can not be inhibited, but they can easily be overridden if needed.
 (set 'tags (map number->string (iota 9 1)))
+
+;; Define layouts before monitor rules to make sure layout is available
 (set-layouts 'tile "[]=" 'dwl:tile)
 
 ;; There must be a default monitor rule (i.e. with name == NULL)
