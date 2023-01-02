@@ -1,0 +1,225 @@
+#+TITLE: dwl-guile
+#+begin_comment
+TODO: Code in =src= blocks do not show up as bold unless I add =.B= on every other line. Should be fixable?
+#+end_comment
+* NAME
+*dwl-guile* -- dynamic tiling Wayland compositor configurable in Guile Scheme
+* SYNOPSIS
+*dwl-guile -c* _CONFIG_
+.br
+*dwl-guile -e* _SEXP_
+* DESCRIPTION
+*dwl-guile* is a hackable and Guile Scheme-configurable *dwm*-inspired Wayland compositor that is based on *dwl*.
+
+At startup: *dwl-guile* loads a Guile Scheme configuration file _CONFIG_.
+
+At runtime: the user can evaluate a _SEXP_ to interact with *dwl-guile*. This includes specifying (additional) key bindings, setting client rules, viewing tags etc. A _SEXP_ can also be evaluated using a REPL client over a Unix socket.
+* DEFAULT KEY BINDINGS
+** Modifiers:
+*dwl-guile* uses the same conventions as *emacs* for its key bindings:
+ *S* Shift
+ *C* Control
+ *s* Super
+ *M* Meta/Alt
+
+** Key bindings
+The default key bindings are:
+ *s-[1-9]*                    Show only all windows with a tag.
+ *s-C-[1-9]*                  Show all windows with a tag.
+ *s-S-[1-9]*                  Move window to a single tag.
+ *s-C-S-[1-9]*                Toggle tag for window.
+ *s-0*                        Show all windows.
+ *s-S-0*                      Show window on all tags
+ *s-[j/k]*                    Move focus down/up the stack.
+ *s-[h/l]*                    Decrease/increase master area.
+ *s-<space>*                  Move window on top of stack or switch top of stack with second window.
+ *s-<tab>*                    Show only all windows with previous tag.
+ *s-<page-[up/down]>*         Increase/decrease number of clients in master
+ *s-t*                        Switch to next layout.
+ *s-q*                        Close window.
+ *s-S-<space>*                Toggle floating state of window.
+ *s-f*                        Toggle fullscreen state of window.
+ *s-<[left/right/up/down]>*   Change monitor focus
+ *s-S-<[left/right/up/down]>* Move tag to monitor
+ *s-d*                        Spawn *bemenu-run*.
+ *s-<return>*                 Spawn *foot*.
+
+* CONFIGURATION
+The configuration file is written in Guile Scheme.
+
+*dwl-guile* applies configuration changes dynamically so that you can see the changes in real-time. A set of default configuration settings (including the key bindings above) will load automatically unless *inhibit-defaults?* is set to *#t*.
+
+A few of the configuration options are mandatory and cannot be inhibited. You can override these if they do not suit your needs.
+
+General options can be set using *(set '<option> <value>)*. For a list of available options, call *(dwl:list-options)* using *dwl-guile -e* or the REPL. The source code also contains a list of all options in the *dscm/config.h* file.
+
+** Tags
+It is mandatory to set the number of tags.
+The default is to use tags 1-9 as such:
+
+.B
+#+begin_src scheme
+(set 'tags (map number->string (iota 9 1)))
+#+end_src
+** Layouts
+At least one layout must be set, which is why *dwl-guile* will automatically add it for you, even if *inhibit-defaults?* is *#t*. The default setting adds only the *tile* layout:
+
+.B
+#+begin_src scheme
+(set-layouts 'tile "[]=" 'dwl:tile)
+#+end_src
+
+Including both the *tile* and *monocle* layouts can look like this:
+
+.B
+#+begin_src scheme
+(set-layouts 'tile "[]=" 'dwl:tile
+.B
+             'monocle "|M|" 'dwl:monocle)
+#+end_src
+
+Note that *'tile* and *'monocle* are unique identifiers for their respective layouts. A monitor rule can use these identifiers to assign a certain layout to a specific monitor. Adding a new layout with an identifier that already exists will simply override the options of the previous layout.
+
+** Monitor rules
+A valid configuration file should contain at least one monitor rule without a specified *name* field, e.g.:
+
+.B
+#+begin_src scheme
+(set-monitor-rules '((masters . 1)
+.B
+                     (master-factor . 0.55)
+.B
+                     (scale . 1)
+.B
+                     (transform . TRANSFORM-NORMAL)
+.B
+                     (layout . tile)))
+#+end_src
+
+To configure a dual-monitor setup with two horizontally adjacent monitors you could write something like this:
+
+.B
+#+begin_src scheme
+(set-monitor-rules '((name . "HDMI-1") (x . 0) (y . 0))
+.B
+                   '((name . "DP-1") (x . 1920) (y . 0)))
+#+end_src
+
+** Client rules
+Windows containing certain clients can be set to spawn in floating mode, be assigned to specific tags and/or monitors.
+
+Here, the chosen client *emacs* is identified by its *id* and is set to spawn on tag 1 as a tiled window on the current monitor:
+
+.B
+#+begin_src scheme
+(set-rules '((id . "emacs")
+.B
+             (tags . 1) ;; can also be a list of tags
+.B
+             (floating? . #f)
+.B
+             (monitor . -1))
+#+end_src
+
+A rule can additionally match a window title with the help of *title*.
+
+** Colors
+Colors can be specified in RGBA format or hex format, i.e. *'(1.0 1.0 1.0 1.0)* or *"#001122FF"* (or just *"#FFFFFF"* if alpha is not needed).
+
+The following snippet applies a red color to the border of the window that is in focus:
+
+.B
+#+begin_src scheme
+(set 'focus-color "#ff0000")
+#+end_src
+
+** Hooks
+Two 'hooks' exist in *dwl-guile*, namely *dwl:hook-startup* and *dwl:hook-quit*.
+These hooks can run some user-defined code on startup or upon exit, e.g.:
+
+.B
+#+begin_src scheme
+(add-hook! dwl:hook-quit (lambda () ...))
+#+end_src
+
+Note that the startup hook will run in its own separate thread, which means that executing blocking, long-running operations is perfectly fine.
+
+Additional hooks must be added in the C source code and it is currently not possible to add new hooks through the configuration file.
+
+** XKB rules
+The following syntax is used to specify X keyboard rules in the configuration file:
+
+.B
+#+begin_src scheme
+(set-xkb-rules '((model . "...")
+.B
+                 (layout . "...")
+.B
+                 (rules . "...")
+.B
+                 (variant . "...")
+.B
+                 (options . "...")
+#+end_src
+
+Each field accepts a string with comma-separated options for XKB. Refer to the XKB manual for additional details.
+
+** Key bindings
+Keyboard and mouse bindings are added with the *bind* procedure.
+
+The following binds *s-<return>* to spawn a new client with the *foot* terminal:
+
+.B
+#+begin_src scheme
+(bind "s-<return>" '(dwl:spawn "foot"))
+#+end_src
+
+A single *bind* call can set multiple bindings at once -- this applies to most of the other procedures as well.
+
+The action of a keybinding can be set in three ways:
+
+.B
+#+begin_src scheme
+(bind "s-<return>" '(dwl:spawn "foot") ;; Expression, no syntax-checking on startup
+.B
+      "s-<space>" 'dwl:zoom)           ;; No arguments allowed
+.B
+      "s-<return>" (lambda (dwl:spawn "foot"))
+#+end_src
+
+Choose whichever method that is most convenient, but remember that the syntax-checking that comes with using symbols or lambda expressions might be useful if you must debug your configuration for some reason.
+
+* REPL SERVER
+*dwl-guile* can host a REPL server that listens on a Unix socket with default path */tmp/dwl-guile.socket* (also available as variable *%dwl:repl-socket-path*).
+You can connect to the REPL with e.g. the *geiser* package for *emacs* (*M-x* *geiser-connect-local*
+and point it to the aformentioned socket).
+
+The REPL is disabled in the default configuration. *(dwl:start-repl-server)* enables it.
+* EXAMPLES
+Start *dwl-guile* with a configuration file called *init.scm*, found in the directory *~/home/user/.config/dwl-guile~*:
+
+.B
+#+begin_src sh
+dwl-guile -c /home/user/.config/dwl-guile/init.scm
+#+end_src
+
+View clients assigned to tag 2:
+
+.B
+#+begin_src sh
+dwl-guile -e "(dwl:view 2)"
+#+end_src
+
+Bind *s-q* to kill the current client:
+
+.B
+#+begin_src sh
+dwl-guile -e "(bind \\"s-q\\" 'dwl:kill-client)"
+#+end_src
+
+* SEE ALSO
+*guile*​(1),
+*foot*​(1),
+*bemenu*​(1),
+*dwm*​(1),
+*xkeyboard-config*​(7)

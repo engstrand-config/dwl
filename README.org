@@ -1,23 +1,35 @@
 * =dwl-guile=
-This project patches [[https://github.com/djpohly/dwl][ =dwl= ]] to load a startup configuration file written in [[https://www.gnu.org/software/guile/][GNU Guile]].
+=dwl-guile= allows you to configure and interact with [[https://github.com/djpohly/dwl][ =dwl= ]] using [[https://www.gnu.org/software/guile/][GNU Guile]] through a startup configuration file and/or a REPL.
 
 ** Goal
-The main goal of =dwl-guile= is to serve as a minimal =dwm=-like Wayland compositor for those who use [[https://guix.gnu.org/][GNU Guix System]] - a GNU/Linux distribution in which the user can customize and configure their entire system in GNU Guile.
+The main goal of =dwl-guile= is to serve as a minimal =dwm=-like Wayland compositor for those who use [[https://guix.gnu.org/][GNU Guix System]] --- a GNU/Linux distribution in which the user can customize and configure their entire system in GNU Guile.
 
-With =dwl-guile=, we can integrate the window manager customization with that of the rest of the system, which allows for a dynamic, programmable and reproducible configuration for our entire computing environment --- all in Guile.
+=dwl-guile= integrates the window manager customization with that of the rest of the system, which allows for a dynamic, programmable and reproducible configuration for our entire computing environment --- all in Guile.
+
+** Features
+*** Scheme/Guile configuration
+The file =./share/default.scm= contains an example configuration. You can script the configuration to your heart's content, since it is written in an actual programming language!
+
+*** Dynamic configuration and interaction...
+ Evaluate expression in real time using =dwl-guile -e "<sexp>"= and change tiling layouts, bind keys and much more on the fly --- there is no need to restart the compositor if you want to try something new!
+
+*** ... also with a REPL!
+  You may also use a REPL client such as [[https://www.nongnu.org/geiser/][Geiser]] to control =dwl-guile= for an even more interactive experience.
 
 ** Installation
-The best way to install and use =dwl-guile= is through our Guix channel  [[https://github.com/engstrand-config/home-service-dwl-guile][home-service-dwl-guile]], which (as the name suggests) provides a [[https://guix.gnu.org/manual/devel/en/html_node/Home-Configuration.html][Guix Home]] service for =dwl-guile=.
+The best way to install and configure =dwl-guile= is through the Guix channel [[https://github.com/engstrand-config/home-service-dwl-guile][home-service-dwl-guile]], which (as the name suggests) provides a [[https://guix.gnu.org/manual/devel/en/html_node/Home-Configuration.html][Guix Home]] service for =dwl-guile=.
+Non-Guix System users can download the GNU Guix package manager for their current GNU/Linux distribution in order to use the Guix Home service.
 
-Non-Guix System users can download the GNU Guix package manager for their respective GNU/Linux distributions in order to configure and run =dwl-guile= through our Guix Home service.
 An alternative way (that works without the Guix package manager) would be to
-1. Clone the repositories for base =dwl= and for =dwl-guile=
-2. Patch =dwl= with the =dwl-guile= patch
-3. Build the binary with the help of the =Makefile= found in this repository
-4. Supply the produced binary with a Guile configuration file
+1. Clone the =dwl-guile= repository
+2. Build a =dwl-guile= binary using the =Makefile=
+3. Supply the produced binary with a Guile configuration file.
 
 ** Releases
-The [[https://github.com/engstrand-config/dwl-guile/releases][Releases]] section contains
-- the main =dwl-guile= patch
-  - this includes the =keycode=, =smartborders=, =vanitygaps=, =cyclelayout= and =alpha= patches by default.
-- the =dwl= patches =attachabove=, =monitor-config=, =movestack=, =swallow= and =xwayland=, edited for =dwl-guile=
+The [[https://github.com/engstrand-config/dwl-guile/releases][Releases]] section contains the =dwl-guile= patch for =dwl= and an assortment of useful patches that provide additional functionality.
+
+Some patches are already included in the main =dwl-guile= patch, namely
+- =keycode=,
+- =smartborders=,
+- =vanitygaps=, and
+- =cyclelayout=.
