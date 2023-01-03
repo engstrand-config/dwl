@@ -17,7 +17,7 @@ clean:
 install: dwl
 	mv dwl dwl-guile
 	install -Dm755 dwl-guile $(PREFIX)/bin/dwl-guile
-	install -Dm644 doc/dwl-guile.1 $(MANDIR)/man1/dwl-guile.1
+	install -Dm644 doc/dwl-guile.1.man $(MANDIR)/man1/dwl-guile.1
 
 .PHONY: all clean install
 
