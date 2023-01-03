@@ -1,5 +1,19 @@
 (define %dwl:repl-socket-path "/tmp/dwl-guile.socket")
 
+;; Sets a list of options and their corresponding values,
+;; automatically quoting each option, transforming it into a symbol.
+;; In other words, this can be used just like @code{set}, but without
+;; needing to quote each option manually.
+
+;; @example
+;; (setq border-px 10
+;;       border-color \"#00FF00\")
+;; @end example
+(define-syntax setq
+  (syntax-rules ()
+    ((setq option exp ...)
+     (apply set '(option exp ...)))))
+
 (define* (dwl:start-repl-server)
   "Starts a local Guile REPL server, listening on a UNIX socket at path
 @path{/tmp/dwl-guile.socket}. This REPL allows you to execute expressions

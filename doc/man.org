@@ -51,7 +51,7 @@ The configuration file is written in Guile Scheme.
 
 A few of the configuration options are mandatory and cannot be inhibited. You can override these if they do not suit your needs.
 
-General options can be set using *(set '<option> <value>)*. For a list of available options, call *(dwl:list-options)* using *dwl-guile -e* or the REPL. The source code also contains a list of all options in the *dscm/config.h* file.
+General options can be set using *(set '<option> <value>)* or *(setq <option> <value>)*. For a list of available options, execute *(dwl:list-options)* using *dwl-guile -e* or the REPL. The source code also contains a list of all options in the *dscm/config.h* file.
 
 ** Tags
 It is mandatory to set the number of tags.
@@ -59,7 +59,7 @@ The default is to use tags 1-9 as such:
 
 .B
 #+begin_src scheme
-(set 'tags (map number->string (iota 9 1)))
+(setq tags (map number->string (iota 9 1)))
 #+end_src
 ** Layouts
 At least one layout must be set, which is why *dwl-guile* will automatically add it for you, even if *inhibit-defaults?* is *#t*. The default setting adds only the *tile* layout:
@@ -130,7 +130,7 @@ The following snippet applies a red color to the border of the window that is in
 
 .B
 #+begin_src scheme
-(set 'focus-color "#ff0000")
+(setq focus-color "#ff0000")
 #+end_src
 
 ** Hooks
