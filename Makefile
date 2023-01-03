@@ -18,6 +18,7 @@ install: dwl
 	mv dwl dwl-guile
 	install -Dm755 dwl-guile $(PREFIX)/bin/dwl-guile
 	install -Dm644 doc/dwl-guile.1.man $(MANDIR)/man1/dwl-guile.1
+	cp -r share $(PREFIX)/share/dwl-guile
 
 .PHONY: all clean install
 

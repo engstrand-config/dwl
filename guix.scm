@@ -144,10 +144,4 @@
                 (let ((bin (string-append (assoc-ref outputs "out") "/bin")))
                   (rename-file (string-append bin "/dwl-guile")
                                (string-append bin "/dwl-guile-devel"))
-                  #t)))
-            (add-after 'install 'copy-share
-                       (lambda* (#:key inputs outputs #:allow-other-keys)
-                         (let ((share (string-append (assoc-ref outputs "out")
-                                                     "/share/dwl-guile")))
-                           (copy-recursively "share" share)
-                           #t))))))))
+                  #t))))))))
