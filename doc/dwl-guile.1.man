@@ -1,0 +1,316 @@
+.TH "dwl-guile" "1" 
+.SH "NAME"
+.PP
+\fBdwl-guile\fP -- dynamic tiling Wayland compositor configurable in Guile Scheme
+.SH "SYNOPSIS"
+.PP
+\fBdwl-guile -c\fP \fICONFIG\fP
+.br
+\fBdwl-guile -e\fP \fISEXP\fP
+.SH "DESCRIPTION"
+.PP
+\fBdwl-guile\fP is a hackable and Guile Scheme-configurable \fBdwm\fP-inspired Wayland compositor that is based on \fBdwl\fP.
+
+.PP
+At startup: \fBdwl-guile\fP loads a Guile Scheme configuration file \fICONFIG\fP.
+
+.PP
+At runtime: the user can evaluate a \fISEXP\fP to interact with \fBdwl-guile\fP. This includes specifying (additional) key bindings, setting client rules, viewing tags etc. A \fISEXP\fP can also be evaluated using a REPL client over a Unix socket.
+.SH "DEFAULT KEY BINDINGS"
+.SS "Modifiers:"
+.PP
+\fBdwl-guile\fP uses the same conventions as \fBemacs\fP for its key bindings:
+ \fBS\fP Shift
+ \fBC\fP Control
+ \fBs\fP Super
+ \fBM\fP Meta/Alt
+
+.SS "Key bindings"
+.PP
+The default key bindings are:
+ \fBs-[1-9]\fP                    Show only all windows with a tag.
+ \fBs-C-[1-9]\fP                  Show all windows with a tag.
+ \fBs-S-[1-9]\fP                  Move window to a single tag.
+ \fBs-C-S-[1-9]\fP                Toggle tag for window.
+ \fBs-0\fP                        Show all windows.
+ \fBs-S-0\fP                      Show window on all tags
+ \fBs-[j/k]\fP                    Move focus down/up the stack.
+ \fBs-[h/l]\fP                    Decrease/increase master area.
+ \fBs-<space>\fP                  Move window on top of stack or switch top of stack with second window.
+ \fBs-<tab>\fP                    Show only all windows with previous tag.
+ \fBs-<page-[up/down]>\fP         Increase/decrease number of clients in master
+ \fBs-t\fP                        Switch to next layout.
+ \fBs-q\fP                        Close window.
+ \fBs-S-<space>\fP                Toggle floating state of window.
+ \fBs-f\fP                        Toggle fullscreen state of window.
+ \fBs-<[left/right/up/down]>\fP   Change monitor focus
+ \fBs-S-<[left/right/up/down]>\fP Move tag to monitor
+ \fBs-d\fP                        Spawn \fBbemenu-run\fP.
+ \fBs-<return>\fP                 Spawn \fBfoot\fP.
+
+.SH "CONFIGURATION"
+.PP
+The configuration file is written in Guile Scheme.
+
+.PP
+\fBdwl-guile\fP applies configuration changes dynamically so that you can see the changes in real-time. A set of default configuration settings (including the key bindings above) will load automatically unless \fBinhibit-defaults?\fP is set to \fB#t\fP.
+
+.PP
+A few of the configuration options are mandatory and cannot be inhibited. You can override these if they do not suit your needs.
+
+.PP
+General options can be set using \fB(set '<option> <value>)\fP or \fB(setq <option> <value>)\fP. For a list of available options, execute \fB(dwl:list-options)\fP using \fBdwl-guile -e\fP or the REPL. The source code also contains a list of all options in the \fBdscm/config.h\fP file.
+
+.SS "Tags"
+.PP
+It is mandatory to set the number of tags.
+The default is to use tags 1-9 as such:
+
+.PP
+.B
+.RS
+.nf
+\fC(setq tags (map number->string (iota 9 1)))
+\fP
+.fi
+.RE
+.SS "Layouts"
+.PP
+At least one layout must be set, which is why \fBdwl-guile\fP will automatically add it for you, even if \fBinhibit-defaults?\fP is \fB#t\fP. The default setting adds only the \fBtile\fP layout:
+
+.PP
+.B
+.RS
+.nf
+\fC(set-layouts 'tile "[]=" 'dwl:tile)
+\fP
+.fi
+.RE
+
+.PP
+Including both the \fBtile\fP and \fBmonocle\fP layouts can look like this:
+
+.PP
+.B
+.RS
+.nf
+\fC(set-layouts 'tile "[]=" 'dwl:tile
+.B
+             'monocle "|M|" 'dwl:monocle)
+\fP
+.fi
+.RE
+
+.PP
+Note that \fB'tile\fP and \fB'monocle\fP are unique identifiers for their respective layouts. A monitor rule can use these identifiers to assign a certain layout to a specific monitor. Adding a new layout with an identifier that already exists will simply override the options of the previous layout.
+
+.SS "Monitor rules"
+.PP
+A valid configuration file should contain at least one monitor rule without a specified \fBname\fP field, e.g.:
+
+.PP
+.B
+.RS
+.nf
+\fC(set-monitor-rules '((masters . 1)
+.B
+                     (master-factor . 0.55)
+.B
+                     (scale . 1)
+.B
+                     (transform . TRANSFORM-NORMAL)
+.B
+                     (layout . tile)))
+\fP
+.fi
+.RE
+
+.PP
+To configure a dual-monitor setup with two horizontally adjacent monitors you could write something like this:
+
+.PP
+.B
+.RS
+.nf
+\fC(set-monitor-rules '((name . "HDMI-1") (x . 0) (y . 0))
+.B
+                   '((name . "DP-1") (x . 1920) (y . 0)))
+\fP
+.fi
+.RE
+
+.SS "Client rules"
+.PP
+Windows containing certain clients can be set to spawn in floating mode, be assigned to specific tags and/or monitors.
+
+.PP
+Here, the chosen client \fBemacs\fP is identified by its \fBid\fP and is set to spawn on tag 1 as a tiled window on the current monitor:
+
+.PP
+.B
+.RS
+.nf
+\fC(set-rules '((id . "emacs")
+.B
+             (tags . 1) ;; can also be a list of tags
+.B
+             (floating? . #f)
+.B
+             (monitor . -1))
+\fP
+.fi
+.RE
+
+.PP
+A rule can additionally match a window title with the help of \fBtitle\fP.
+
+.SS "Colors"
+.PP
+Colors can be specified in RGBA format or hex format, i.e. \fB'(1.0 1.0 1.0 1.0)\fP or \fB"#001122FF"\fP (or just \fB"#FFFFFF"\fP if alpha is not needed).
+
+.PP
+The following snippet applies a red color to the border of the window that is in focus:
+
+.PP
+.B
+.RS
+.nf
+\fC(setq focus-color "#ff0000")
+\fP
+.fi
+.RE
+
+.SS "Hooks"
+.PP
+Two 'hooks' exist in \fBdwl-guile\fP, namely \fBdwl:hook-startup\fP and \fBdwl:hook-quit\fP.
+These hooks can run some user-defined code on startup or upon exit, e.g.:
+
+.PP
+.B
+.RS
+.nf
+\fC(add-hook! dwl:hook-quit (lambda () ...))
+\fP
+.fi
+.RE
+
+.PP
+Note that the startup hook will run in its own separate thread, which means that executing blocking, long-running operations is perfectly fine.
+
+.PP
+Additional hooks must be added in the C source code and it is currently not possible to add new hooks through the configuration file.
+
+.SS "XKB rules"
+.PP
+The following syntax is used to specify X keyboard rules in the configuration file:
+
+.PP
+.B
+.RS
+.nf
+\fC(set-xkb-rules '((model . "...")
+.B
+                 (layout . "...")
+.B
+                 (rules . "...")
+.B
+                 (variant . "...")
+.B
+                 (options . "...")
+\fP
+.fi
+.RE
+
+.PP
+Each field accepts a string with comma-separated options for XKB. Refer to the XKB manual for additional details.
+
+.SS "Key bindings"
+.PP
+Keyboard and mouse bindings are added with the \fBbind\fP procedure.
+
+.PP
+The following binds \fBs-<return>\fP to spawn a new client with the \fBfoot\fP terminal:
+
+.PP
+.B
+.RS
+.nf
+\fC(bind "s-<return>" '(dwl:spawn "foot"))
+\fP
+.fi
+.RE
+
+.PP
+A single \fBbind\fP call can set multiple bindings at once -- this applies to most of the other procedures as well.
+
+.PP
+The action of a keybinding can be set in three ways:
+
+.PP
+.B
+.RS
+.nf
+\fC(bind "s-<return>" '(dwl:spawn "foot") ;; Expression, no syntax-checking on startup
+.B
+      "s-<space>" 'dwl:zoom)           ;; No arguments allowed
+.B
+      "s-<return>" (lambda (dwl:spawn "foot"))
+\fP
+.fi
+.RE
+
+.PP
+Choose whichever method that is most convenient, but remember that the syntax-checking that comes with using symbols or lambda expressions might be useful if you must debug your configuration for some reason.
+
+.SH "REPL SERVER"
+.PP
+\fBdwl-guile\fP can host a REPL server that listens on a Unix socket with default path \fB/tmp/dwl-guile.socket\fP (also available as variable \fB%dwl:repl-socket-path\fP).
+You can connect to the REPL with e.g. the \fBgeiser\fP package for \fBemacs\fP (\fBM-x\fP \fBgeiser-connect-local\fP
+and point it to the aformentioned socket).
+
+.PP
+The REPL is disabled in the default configuration. \fB(dwl:start-repl-server)\fP enables it.
+.SH "EXAMPLES"
+.PP
+Start \fBdwl-guile\fP with a configuration file called \fBinit.scm\fP, found in the directory \fB\fC/home/user/.config/dwl\-guile\fP\fP:
+
+.PP
+.B
+.RS
+.nf
+\fCdwl-guile -c /home/user/.config/dwl-guile/init.scm
+\fP
+.fi
+.RE
+
+.PP
+View clients assigned to tag 2:
+
+.PP
+.B
+.RS
+.nf
+\fCdwl-guile -e "(dwl:view 2)"
+\fP
+.fi
+.RE
+
+.PP
+Bind \fBs-q\fP to kill the current client:
+
+.PP
+.B
+.RS
+.nf
+\fCdwl-guile -e "(bind \\"s-q\\" 'dwl:kill-client)"
+\fP
+.fi
+.RE
+
+.SH "SEE ALSO"
+.PP
+\fBguile\fP​(1),
+\fBfoot\fP​(1),
+\fBbemenu\fP​(1),
+\fBdwm\fP​(1),
+\fBxkeyboard-config\fP​(7)

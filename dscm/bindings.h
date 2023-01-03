@@ -249,38 +249,6 @@ dscm_binding_incrogaps(SCM value)
 }
 
 static inline SCM
-dscm_binding_incrohgaps(SCM value)
-{
-	Arg a = {.i = scm_to_int(value)};
-	incrohgaps(&a);
-	return SCM_BOOL_T;
-}
-
-static inline SCM
-dscm_binding_incrovgaps(SCM value)
-{
-	Arg a = {.i = scm_to_int(value)};
-	incrovgaps(&a);
-	return SCM_BOOL_T;
-}
-
-static inline SCM
-dscm_binding_incrihgaps(SCM value)
-{
-	Arg a = {.i = scm_to_int(value)};
-	incrihgaps(&a);
-	return SCM_BOOL_T;
-}
-
-static inline SCM
-dscm_binding_incrivgaps(SCM value)
-{
-	Arg a = {.i = scm_to_int(value)};
-	incrivgaps(&a);
-	return SCM_BOOL_T;
-}
-
-static inline SCM
 dscm_binding_togglegaps()
 {
 	togglegaps(NULL);

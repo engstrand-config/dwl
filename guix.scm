@@ -139,18 +139,14 @@
       ((#:phases phases)
        `(modify-phases
           ,phases
-            (replace
-              'install
-              (lambda*
-                (#:key inputs outputs #:allow-other-keys)
+            (add-after 'install 'rename-dwl-guile-to-dwl-guile-devel
+              (lambda* (#:key inputs outputs #:allow-other-keys)
                 (let ((bin (string-append (assoc-ref outputs "out") "/bin")))
-                  (install-file "dwl" bin)
-                  (rename-file (string-append bin "/dwl")
+                  (rename-file (string-append bin "/dwl-guile")
                                (string-append bin "/dwl-guile-devel"))
                   #t)))
             (add-after 'install 'copy-share
-                       (lambda*
-                           (#:key inputs outputs #:allow-other-keys)
+                       (lambda* (#:key inputs outputs #:allow-other-keys)
                          (let ((share (string-append (assoc-ref outputs "out")
                                                      "/share/dwl-guile")))
                            (copy-recursively "share" share)
