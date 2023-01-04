@@ -290,11 +290,11 @@ dscm_binding_set(SCM rest)
 }
 
 static inline SCM
-dscm_binding_bind(SCM rest)
+dscm_binding_setkeys(SCM rest)
 {
-	DSCM_SET_REST("bind", rest, 2)
+	DSCM_SET_REST("set-keys", rest, 2)
 		dscm_binding_set(
-			scm_list_2(dscm_string_to_symbol("bindings"),
+			scm_list_2(dscm_string_to_symbol("keys"),
 				   scm_list_2(dscm_list_ref(rest, i),
 					      dscm_list_ref(rest, i + 1))));
 	return SCM_BOOL_T;
@@ -430,7 +430,7 @@ dscm_register()
 	/* dwl-guile specific bindings */
 	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_config_load);
 	scm_c_define_gsubr("set", 0, 0, 1, &dscm_binding_set);
-	scm_c_define_gsubr("bind", 0, 0, 1, &dscm_binding_bind);
+	scm_c_define_gsubr("set-keys", 0, 0, 1, &dscm_binding_setkeys);
 	scm_c_define_gsubr("set-layouts", 0, 0, 1, &dscm_binding_setlayouts);
 	scm_c_define_gsubr("set-rules", 0, 0, 1, &dscm_binding_setrules);
 	scm_c_define_gsubr("set-monitor-rules", 0, 0, 1, &dscm_binding_setmonrules);

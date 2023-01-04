@@ -165,26 +165,26 @@ The following syntax is used to specify X keyboard rules in the configuration fi
 Each field accepts a string with comma-separated options for XKB. Refer to the XKB manual for additional details.
 
 ** Key bindings
-Keyboard and mouse bindings are added with the *bind* procedure.
+Keyboard and mouse bindings are added with the *set-keys* procedure.
 
-The following binds *s-<return>* to spawn a new client with the *foot* terminal:
+The following bind *s-<return>* to spawn a new client with the *foot* terminal:
 
 .B
 #+begin_src scheme
-(bind "s-<return>" '(dwl:spawn "foot"))
+(set-keys "s-<return>" '(dwl:spawn "foot"))
 #+end_src
 
-A single *bind* call can set multiple bindings at once -- this applies to most of the other procedures as well.
+A single *set-keys* call can set multiple bindings at once -- this applies to most of the other procedures as well.
 
 The action of a keybinding can be set in three ways:
 
 .B
 #+begin_src scheme
-(bind "s-<return>" '(dwl:spawn "foot") ;; Expression, no syntax-checking on startup
+(set-keys "s-<return>" '(dwl:spawn "foot") ;; Expression, no syntax-checking on startup
 .B
-      "s-<space>" 'dwl:zoom)           ;; No arguments allowed
+          "s-<space>" 'dwl:zoom)           ;; No arguments allowed
 .B
-      "s-<return>" (lambda (dwl:spawn "foot"))
+          "s-<return>" (lambda (dwl:spawn "foot"))
 #+end_src
 
 Choose whichever method that is most convenient, but remember that the syntax-checking that comes with using symbols or lambda expressions might be useful if you must debug your configuration for some reason.
@@ -214,7 +214,7 @@ Bind *s-q* to kill the current client:
 
 .B
 #+begin_src sh
-dwl-guile -e "(bind \\"s-q\\" 'dwl:kill-client)"
+dwl-guile -e "(set-keys \\"s-q\\" 'dwl:kill-client)"
 #+end_src
 
 * SEE ALSO

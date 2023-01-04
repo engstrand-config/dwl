@@ -226,22 +226,22 @@ Each field accepts a string with comma-separated options for XKB. Refer to the X
 
 .SS "Key bindings"
 .PP
-Keyboard and mouse bindings are added with the \fBbind\fP procedure.
+Keyboard and mouse bindings are added with the \fBset-keys\fP procedure.
 
 .PP
-The following binds \fBs-<return>\fP to spawn a new client with the \fBfoot\fP terminal:
+The following bind \fBs-<return>\fP to spawn a new client with the \fBfoot\fP terminal:
 
 .PP
 .B
 .RS
 .nf
-\fC(bind "s-<return>" '(dwl:spawn "foot"))
+\fC(set-keys "s-<return>" '(dwl:spawn "foot"))
 \fP
 .fi
 .RE
 
 .PP
-A single \fBbind\fP call can set multiple bindings at once -- this applies to most of the other procedures as well.
+A single \fBset-keys\fP call can set multiple bindings at once -- this applies to most of the other procedures as well.
 
 .PP
 The action of a keybinding can be set in three ways:
@@ -250,11 +250,11 @@ The action of a keybinding can be set in three ways:
 .B
 .RS
 .nf
-\fC(bind "s-<return>" '(dwl:spawn "foot") ;; Expression, no syntax-checking on startup
+\fC(set-keys "s-<return>" '(dwl:spawn "foot") ;; Expression, no syntax-checking on startup
 .B
-      "s-<space>" 'dwl:zoom)           ;; No arguments allowed
+          "s-<space>" 'dwl:zoom)           ;; No arguments allowed
 .B
-      "s-<return>" (lambda (dwl:spawn "foot"))
+          "s-<return>" (lambda (dwl:spawn "foot"))
 \fP
 .fi
 .RE
@@ -302,7 +302,7 @@ Bind \fBs-q\fP to kill the current client:
 .B
 .RS
 .nf
-\fCdwl-guile -e "(bind \\"s-q\\" 'dwl:kill-client)"
+\fCdwl-guile -e "(set-keys \\"s-q\\" 'dwl:kill-client)"
 \fP
 .fi
 .RE

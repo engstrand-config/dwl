@@ -9,10 +9,25 @@
 ;; (setq border-px 10
 ;;       border-color \"#00FF00\")
 ;; @end example
+(define-syntax setq-args
+  (syntax-rules ()
+    ((setq-args)
+     (syntax-error "Missing arguments to setq"))
+    ((setq-args option)
+     (syntax-error "Missing value to option in setq"))
+    ((setq-args option exp)
+     `(option ,exp))
+    ((setq-args option exp rest ...)
+     (append `(option ,exp) (setq-args rest ...)))))
+
 (define-syntax setq
   (syntax-rules ()
-    ((setq option exp ...)
-     (apply set '(option exp ...)))))
+    ((setq)
+     (syntax-error "Missing arguments to setq"))
+    ((setq option)
+     (syntax-error "Missing value to option in setq"))
+    ((setq rest ...)
+     (apply set (setq-args rest ...)))))
 
 (define* (dwl:start-repl-server)
   "Starts a local Guile REPL server, listening on a UNIX socket at path
@@ -75,26 +90,26 @@ in a readable format."
    (sort-list (dwl:list-keysyms)
               (lambda (x y) (< (cadr x) (cadr y))))))
 
-(define* (dwl:bind-ttys modifiers #:optional (ttys 12))
+(define* (dwl:set-tty-keys modifiers #:optional (ttys 12))
   "Helper procedure for binding all ttys to MODIFIERS + F[1-TTYS]."
   (for-each
    (lambda (v)
-     (bind (string-append modifiers "-<F" (number->string v) ">") `(dwl:chvt ,v)))
+     (set-keys (string-append modifiers "-<F" (number->string v) ">") `(dwl:chvt ,v)))
    (iota ttys 1)))
 
-(define* (dwl:bind-tags view-modifiers move-modifiers #:optional (tags 9))
+(define* (dwl:set-tag-keys view-modifiers move-modifiers #:optional (tags 9))
   "Helper procedure for adding bindings for viewing and moving clients to
 tags 1-TAGS. The key modifiers used for viewing and moving can be set by
 VIEW-MODIFIERS, and MOVE-MODIFIERS, respectively."
   (for-each
    (lambda (t)
-     (bind (string-append view-modifiers "-" (number->string t)) `(dwl:view ,t)
-           (string-append move-modifiers "-" (number->string t)) `(dwl:tag ,t)))
+     (set-keys (string-append view-modifiers "-" (number->string t)) `(dwl:view ,t)
+               (string-append move-modifiers "-" (number->string t)) `(dwl:tag ,t)))
    (iota tags 1)))
 
 ;; Set required options.
 ;; These can not be inhibited, but they can easily be overridden if needed.
-(set 'tags (map number->string (iota 9 1)))
+(setq tags (map number->string (iota 9 1)))
 
 ;; Define layouts before monitor rules to make sure layout is available
 (set-layouts 'tile "[]=" 'dwl:tile)

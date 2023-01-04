@@ -710,8 +710,8 @@ dscm_config_initialize()
 	DSCM_DEFINE_P(lockscreen_bg, "lockscreen-color",
 		      &setter_color, &reload_lockscreen_bg);
 
-	DSCM_DEFINE_P(keys, "bindings", &setter_binding, NULL);
-	DSCM_DEFINE_P(buttons, "bindings", &setter_binding, NULL);
+	DSCM_DEFINE_P(keys, "keys", &setter_binding, NULL);
+	DSCM_DEFINE_P(buttons, "keys", &setter_binding, NULL);
 	DSCM_DEFINE_P(tags, "tags", &setter_tags, &reload_tags);
 	DSCM_DEFINE_P(layouts, "layouts", &setter_layout, &reload_layouts);
 	DSCM_DEFINE_P(rules, "rules", &setter_rule, &reload_rules);
