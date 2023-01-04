@@ -130,5 +130,5 @@ VIEW-MODIFIERS, and MOVE-MODIFIERS, respectively."
 (set-monitor-rules '((masters . 1)
                      (master-factor . 0.55)
                      (scale . 1)
-                     (rr . TRANSFORM-NORMAL)
+                     (transform . TRANSFORM-NORMAL)
                      (layout . tile)))
