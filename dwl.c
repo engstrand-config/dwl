@@ -218,7 +218,7 @@ struct Monitor {
 typedef struct {
 	char *name;
 	float mfact;
-	int nmaster, x, y;
+	int nmaster;
 	float scale;
 	const Layout *lt;
 	enum wl_output_transform rr;

@@ -371,8 +371,6 @@ setter_monrule(void *cvar, SCM value)
 	SCM nmaster = dscm_assoc_ref(value, "masters");
 	SCM scale = dscm_assoc_ref(value, "scale");
 	SCM rr = dscm_assoc_ref(value, "transform");
-	SCM x = dscm_assoc_ref(value, "x");
-	SCM y = dscm_assoc_ref(value, "y");
 	SCM lt = dscm_assoc_ref(value, "layout");
 
 	wl_list_for_each(r, lst, link) {
@@ -414,16 +412,6 @@ setter_monrule(void *cvar, SCM value)
 		DSCM_ASSERT_TYPE(scm_is_integer(nmaster),
 				 value, "set-monitor-rules", "masters", "int");
 		r->nmaster = scm_to_int(nmaster);
-	}
-	if (!scm_is_false(x)) {
-		DSCM_ASSERT_TYPE(scm_is_integer(x),
-				 value, "set-monitor-rules", "x", "int");
-		r->x = scm_to_int(x);
-	}
-	if (!scm_is_false(y)) {
-		DSCM_ASSERT_TYPE(scm_is_integer(y),
-				 value, "set-monitor-rules", "y", "int");
-		r->y = scm_to_int(y);
 	}
 	if (!scm_is_false(rr)) {
 		DSCM_ASSERT_TYPE(scm_is_symbol(rr),
