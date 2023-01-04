@@ -29,6 +29,18 @@
     ((setq rest ...)
      (apply set (setq-args rest ...)))))
 
+;; Evalutes EXPS asynchronously, without blocking the main thread.
+;;
+;; @example
+;; (eval-async
+;;  (sleep 2)
+;;  (dwl:toggle-fullscreen))
+;; @end example
+(define-syntax eval-async
+  (syntax-rules ()
+    ((_ exps ...)
+     ((@ (ice-9 futures) make-future) (lambda () (begin exps ...))))))
+
 (define* (dwl:start-repl-server)
   "Starts a local Guile REPL server, listening on a UNIX socket at path
 @path{/tmp/dwl-guile.socket}. This REPL allows you to execute expressions
