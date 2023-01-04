@@ -337,6 +337,13 @@ dscm_binding_setxkbrules(SCM xkb)
 	return SCM_BOOL_T;
 }
 
+static inline SCM
+dscm_binding_reloadconfig()
+{
+	dscm_config_load();
+	return SCM_BOOL_T;
+}
+
 static inline void
 dscm_register()
 {
@@ -428,7 +435,7 @@ dscm_register()
 	scm_c_define_gsubr("dwl:change-gaps-outer", 1, 0, 0, &dscm_binding_incrogaps);
 
 	/* dwl-guile specific bindings */
-	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_config_load);
+	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_binding_reloadconfig);
 	scm_c_define_gsubr("set", 0, 0, 1, &dscm_binding_set);
 	scm_c_define_gsubr("set-keys", 0, 0, 1, &dscm_binding_setkeys);
 	scm_c_define_gsubr("set-layouts", 0, 0, 1, &dscm_binding_setlayouts);
