@@ -344,6 +344,14 @@ dscm_binding_reloadconfig()
 	return SCM_BOOL_T;
 }
 
+static inline SCM
+dscm_binding_movestack(SCM direction)
+{
+	Arg a = {.i = scm_to_int(direction)};
+	movestack(&a);
+	return SCM_BOOL_T;
+}
+
 static inline void
 dscm_register()
 {
@@ -433,6 +441,7 @@ dscm_register()
 	scm_c_define_gsubr("dwl:change-gaps", 1, 0, 0, &dscm_binding_incrgaps);
 	scm_c_define_gsubr("dwl:change-gaps-inner", 1, 0, 0, &dscm_binding_incrigaps);
 	scm_c_define_gsubr("dwl:change-gaps-outer", 1, 0, 0, &dscm_binding_incrogaps);
+	scm_c_define_gsubr("dwl:move-stack", 1, 0, 0, &dscm_binding_movestack);
 
 	/* dwl-guile specific bindings */
 	scm_c_define_gsubr("dwl:reload-config", 0, 0, 0, &dscm_binding_reloadconfig);
