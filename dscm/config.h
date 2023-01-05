@@ -307,17 +307,18 @@ setter_rule(void *cvar, SCM value)
 		}
 	}
 
+	scm_dynwind_begin(0);
+
 	if (!found) {
 		r = calloc(1, sizeof(Rule));
 		r->id = id;
 		r->title = title;
 		r->monitor = -1;
-	}
 
-	scm_dynwind_begin(0);
-	scm_dynwind_unwind_handler(free, r, 0);
-	if (!found && id) scm_dynwind_unwind_handler(free, id, 0);
-	if (!found && title) scm_dynwind_unwind_handler(free, title, 0);
+		scm_dynwind_unwind_handler(free, r, 0);
+		if (id) scm_dynwind_unwind_handler(free, id, 0);
+		if (title) scm_dynwind_unwind_handler(free, title, 0);
+	}
 
 	DSCM_ASSERT_TYPE(scm_is_bool(floating),
 			 value, "set-rules", "floating?", "bool");
@@ -362,8 +363,8 @@ setter_monrule(void *cvar, SCM value)
 {
 	DSCM_ASSERT_TYPE(scm_is_true(scm_list_p(value)),
 			 value, "set-monitor-rules", DSCM_ARG1, "alist");
-	MonitorRule *r;
 	int found = 0;
+	MonitorRule *r;
 	struct wl_list *lst = cvar;
 
 	char *name = dscm_assoc_ref_string(value, "name");
@@ -376,10 +377,12 @@ setter_monrule(void *cvar, SCM value)
 	wl_list_for_each(r, lst, link) {
 		if ((!r->name && !name) || (r->name && name && !strcmp(r->name, name))) {
 			found = 1;
-			if (name != NULL) free(name);
+			if (name) free(name);
 			break;
 		}
 	}
+
+	scm_dynwind_begin(0);
 
 	if (!found) {
 		r = calloc(1, sizeof(MonitorRule));
@@ -392,11 +395,10 @@ setter_monrule(void *cvar, SCM value)
 		r->mfact = 0.55;
 		/* init.scm will always define a layout, so this will always work */
 		r->lt = wl_container_of(layouts.next, r->lt, link);
-	}
 
-	scm_dynwind_begin(0);
-	scm_dynwind_unwind_handler(free, r, 0);
-	if (!found && name) scm_dynwind_unwind_handler(free, name, 0);
+		scm_dynwind_unwind_handler(free, r, 0);
+		if (name) scm_dynwind_unwind_handler(free, name, 0);
+	}
 
 	if (!scm_is_false(mfact)) {
 		DSCM_ASSERT_TYPE(scm_is_number(mfact),
