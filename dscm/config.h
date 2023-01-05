@@ -470,6 +470,14 @@ reload_gaps()
 }
 
 static inline void
+reload_arrange()
+{
+	Monitor *m;
+	wl_list_for_each(m, &mons, link)
+		arrange(m);
+}
+
+static inline void
 reload_rootcolor()
 {
 	/* Not set by upstream dwl in v0.4 */
@@ -661,8 +669,8 @@ dscm_config_initialize()
 	DSCM_DEFINE(xkb_rules, "xkb-rules", NULL, &setter_xkb_rules, &reload_xkb_rules);
 
 	DSCM_DEFINE(sloppyfocus, "sloppy-focus?", 1, &setter_bool, NULL);
-	DSCM_DEFINE(smartgaps, "smart-gaps?", 0, &setter_bool, NULL);
-	DSCM_DEFINE(smartborders, "smart-borders?", 0, &setter_bool, NULL);
+	DSCM_DEFINE(smartgaps, "smart-gaps?", 0, &setter_bool, &reload_arrange);
+	DSCM_DEFINE(smartborders, "smart-borders?", 0, &setter_bool, &reload_arrange);
 	DSCM_DEFINE(tap_to_click, "tap-to-click?", 1, &setter_bool, &reload_libinput);
 	DSCM_DEFINE(tap_and_drag, "tap-and-drag?", 1, &setter_uint, &reload_libinput);
 	DSCM_DEFINE(drag_lock, "drag-lock?", 1, &setter_bool, &reload_libinput);
