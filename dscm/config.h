@@ -314,6 +314,8 @@ setter_rule(void *cvar, SCM value)
 	SCM floating = dscm_assoc_ref(value, "floating?");
 	SCM monitor = dscm_assoc_ref(value, "monitor");
 	SCM alpha = dscm_assoc_ref(value, "alpha");
+	SCM terminal = dscm_assoc_ref(value, "terminal?");
+	SCM noswallow = dscm_assoc_ref(value, "no-swallow?");
 
 	wl_list_for_each(r, lst, link) {
 		if (((!r->id && !id) || (r->id && id && !strcmp(r->id, id))) &&
@@ -340,7 +342,13 @@ setter_rule(void *cvar, SCM value)
 
 	DSCM_ASSERT_TYPE(scm_is_bool(floating),
 			 value, "set-rules", "floating?", "bool");
+	DSCM_ASSERT_TYPE(scm_is_bool(terminal),
+			 value, "set-rules", "terminal?", "bool");
+	DSCM_ASSERT_TYPE(scm_is_bool(noswallow),
+			 value, "set-rules", "no-swallow?", "bool");
 	r->isfloating = scm_to_bool(floating);
+	r->isterm = scm_to_bool(terminal);
+	r->noswallow = scm_to_bool(noswallow);
 
 	if (!scm_is_false(tags)) {
 		if (scm_is_true(scm_list_p(tags))) {

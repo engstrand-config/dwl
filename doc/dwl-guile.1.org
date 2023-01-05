@@ -123,6 +123,17 @@ Here, the chosen client *emacs* is identified by its *id* and is set to spawn on
 
 A rule can additionally match a window title with the help of *title*.
 
+*Swallowing* of clients need to explicitly enabled by setting *terminal?* to *#t* for your terminal of choice:
+
+.B
+#+begin_src scheme
+(set-rules '((id . "foot")
+.B
+             (terminal? . #t)))
+#+end_src
+
+It is also possible to disable swallowing for specific clients by setting *no-swallow?* to *#t*.
+
 ** Colors
 Colors can be specified in RGBA format or hex format, i.e. *'(1.0 1.0 1.0 1.0)* or *"#001122FF"* (or just *"#FFFFFF"* if alpha is not needed).
 

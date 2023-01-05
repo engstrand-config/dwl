@@ -164,6 +164,23 @@ Here, the chosen client \fBemacs\fP is identified by its \fBid\fP and is set to 
 .PP
 A rule can additionally match a window title with the help of \fBtitle\fP.
 
+.PP
+\fBSwallowing\fP of clients need to explicitly enabled by setting \fBterminal?\fP to \fB#t\fP for your terminal of choice:
+
+.PP
+.B
+.RS
+.nf
+\fC(set-rules '((id . "foot")
+.B
+             (terminal? . #t)))
+\fP
+.fi
+.RE
+
+.PP
+It is also possible to disable swallowing for specific clients by setting \fBno-swallow?\fP to \fB#t\fP.
+
 .SS "Colors"
 .PP
 Colors can be specified in RGBA format or hex format, i.e. \fB'(1.0 1.0 1.0 1.0)\fP or \fB"#001122FF"\fP (or just \fB"#FFFFFF"\fP if alpha is not needed).
