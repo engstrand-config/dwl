@@ -2574,7 +2574,7 @@ tile(Monitor *m)
 
 	if (smartgaps == n)
 		oe = 0; // outer gaps disabled
-	if (smartborders == n)
+	if (smartborders == n && oe == 0)
 		enableborders = 0;
 
 	if (n > m->nmaster)
