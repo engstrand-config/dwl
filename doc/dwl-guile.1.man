@@ -132,12 +132,39 @@ To configure a dual-monitor setup with two horizontally adjacent monitors you co
 .B
 .RS
 .nf
-\fC(set-monitor-rules '((name . "HDMI-1") (x . 0) (y . 0))
+\fC(set-monitor-rules '((name . "DP-1")
 .B
-                   '((name . "DP-1") (x . 1920) (y . 0)))
+                     (x . 0)
+.B
+                     (y . 0)
+.B
+                     (width . 2560)
+.B
+                     (height . 1440)
+.B
+                     (refresh-rate . 144)
+.B
+                     (adaptive-sync? . #t))
+.B
+                   '((name . "HDMI-A-1")
+.B
+                     (x . 2560)
+.B
+                     (y . 0)
+.B
+                     (width . 1920)
+.B
+                     (height . 1080)
+.B
+                     (refresh-rate . 144)
+.B
+                     (adaptive-sync? . #t)))
 \fP
 .fi
 .RE
+
+.PP
+Note that dwl-guile will automatically select a good default mode for your monitors if width, height, or refresh rate is not explicitly set.
 
 .SS "Client rules"
 .PP

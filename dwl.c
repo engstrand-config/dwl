@@ -228,6 +228,11 @@ typedef struct {
 	float scale;
 	const Layout *lt;
 	enum wl_output_transform rr;
+	int resx;
+	int resy;
+	int rate;
+	int adaptive_sync;
+	int x, y;
 	struct wl_list link;
 } MonitorRule;
 
@@ -279,7 +284,7 @@ static void applyexclusive(struct wlr_box *usable_area, uint32_t anchor,
 			   int32_t margin_right, int32_t margin_bottom,
 			   int32_t margin_left);
 static void applylibinputrules(struct wlr_input_device *dev);
-static void applymonrules(Monitor *m);
+static void applymonrules(Monitor *m, int reload);
 static void applyrules(Client *c);
 static void arrange(Monitor *m);
 static void arrangelayer(Monitor *m, struct wl_list *list,
@@ -356,6 +361,7 @@ static void setfullscreen(Client *c, int fullscreen);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
 static void setmon(Client *c, Monitor *m, unsigned int newtags);
+static void setmonmode(struct wlr_output *output, int width, int height, float refresh_rate);
 static void setup();
 static void sigchld(int unused);
 static void setpsel(struct wl_listener *listener, void *data);
@@ -538,9 +544,14 @@ applybounds(Client *c, struct wlr_box *bbox)
 }
 
 void
-applymonrules(Monitor *m)
+applymonrules(Monitor *m, int reload)
 {
+	int32_t resx, resy, rate;
+	int prevx = m->m.x, prevy = m->m.y;
 	MonitorRule *r;
+	const struct wlr_output_mode *wlr_output_mode;
+	struct wlr_output_layout_output *layout_output;
+
 	wl_list_for_each(r, &monrules, link) {
 		if (!r->name || strstr(m->wlr_output->name, r->name)) {
 			m->mfact = r->mfact;
@@ -549,10 +560,25 @@ applymonrules(Monitor *m)
 			wlr_xcursor_manager_load(cursor_mgr, r->scale);
 			m->lt[0] = m->lt[1] = r->lt;
 			wlr_output_set_transform(m->wlr_output, r->rr);
+			wlr_output_mode = wlr_output_preferred_mode(m->wlr_output);
+			rate = r->rate ? r->rate : wlr_output_mode->refresh;
+			resx = r->resx ? r->resx : wlr_output_mode->width;
+			resy = r->resy ? r->resy : wlr_output_mode->height;
+			m->m.x = r->x > 0 ? r->x : 0;
+			m->m.y = r->y > 0 ? r->y : 0;
+			m->m.width = resx;
+			m->m.height = resy;
+			setmonmode(m->wlr_output, resx, resy, rate);
+			if (r->adaptive_sync)
+					wlr_output_enable_adaptive_sync(m->wlr_output, 1);
 			break;
 		}
 	}
-	wlr_output_commit(m->wlr_output);
+	if (reload) {
+		if (prevx != m->m.x || prevy != m->m.y)
+			wlr_output_layout_move(output_layout, m->wlr_output, m->m.x, m->m.y);
+		updatemons(NULL, NULL);
+	}
 }
 
 void
@@ -1048,17 +1074,22 @@ createmon(struct wl_listener *listener, void *data)
 
 	wlr_output_init_render(wlr_output, alloc, drw);
 
+	/* The mode is a tuple of (width, height, refresh rate), and each
+	 * monitor supports only a specific set of modes. Default to the
+	 * preferred mode, which will be overwritten if the user
+	 * specifies a different one*/
+	wlr_output_set_mode(m->wlr_output, wlr_output_preferred_mode(m->wlr_output));
+
+	/* Try to enable adaptive sync, note that not all monitors support it.
+	 * wlr_output_commit() will deactivate it in case it cannot be enabled */
+	wlr_output_enable_adaptive_sync(m->wlr_output, 1);
+	wlr_output_commit(m->wlr_output);
+
 	/* Initialize monitor state using configured rules */
 	for (i = 0; i < LENGTH(m->layers); i++)
 		wl_list_init(&m->layers[i]);
 	m->tagset[0] = m->tagset[1] = 1;
-	applymonrules(m);
-
-	/* The mode is a tuple of (width, height, refresh rate), and each
-	 * monitor supports only a specific set of modes. We just pick the
-	 * monitor's preferred mode; a more sophisticated compositor would let
-	 * the user configure it. */
-	wlr_output_set_mode(wlr_output, wlr_output_preferred_mode(wlr_output));
+	applymonrules(m, 0);
 
 	/* Set up event listeners */
 	LISTEN(&wlr_output->events.frame, &m->frame, rendermon);
@@ -1067,11 +1098,6 @@ createmon(struct wl_listener *listener, void *data)
 	wlr_output_enable(wlr_output, 1);
 	if (!wlr_output_commit(wlr_output))
 		return;
-
-	/* Try to enable adaptive sync, note that not all monitors support it.
-	 * wlr_output_commit() will deactivate it in case it cannot be enabled */
-	wlr_output_enable_adaptive_sync(wlr_output, 1);
-	wlr_output_commit(wlr_output);
 
 	wl_list_insert(&mons, &m->link);
 	printstatus();
@@ -1095,7 +1121,10 @@ createmon(struct wl_listener *listener, void *data)
 	 * output (such as DPI, scale factor, manufacturer, etc).
 	 */
 	m->scene_output = wlr_scene_output_create(scene, wlr_output);
-	wlr_output_layout_add_auto(output_layout, wlr_output);
+	if (m->m.x < 0 || m->m.y < 0)
+		wlr_output_layout_add_auto(output_layout, wlr_output);
+	else
+		wlr_output_layout_add(output_layout, wlr_output, m->m.x, m->m.y);
 }
 
 void
@@ -2320,6 +2349,38 @@ setmon(Client *c, Monitor *m, unsigned int newtags)
 }
 
 void
+setmonmode(struct wlr_output *output, int width, int height, float refresh_rate)
+{
+	/* Not all floating point integers can be represented exactly
+	 * as (int)(1000 * mHz / 1000.f)
+	 * round() the result to avoid any error */
+	struct wlr_output_mode *mode, *best = NULL;
+	int mhz = (int)ROUND(refresh_rate * 1000);
+
+	if (wl_list_empty(&output->modes)) {
+		wlr_output_set_custom_mode(output, width, height,
+			refresh_rate > 0 ? mhz : 0);
+		return;
+	}
+
+	wl_list_for_each(mode, &output->modes, link) {
+		if (mode->width == width && mode->height == height) {
+			if (mode->refresh == mhz) {
+				best = mode;
+				break;
+			}
+			if (best == NULL || mode->refresh > best->refresh)
+				best = mode;
+		}
+	}
+
+	if (!best)
+		best = wlr_output_preferred_mode(output);
+
+	wlr_output_set_mode(output, best);
+}
+
+void
 setpsel(struct wl_listener *listener, void *data)
 {
 	/* This event is raised by the seat when a client wants to set the selection,
@@ -2757,7 +2818,7 @@ updatemons(struct wl_listener *listener, void *data)
 	wl_list_for_each(m, &mons, link)
 		if (m->wlr_output->enabled
 		    && !wlr_output_layout_get(output_layout, m->wlr_output))
-			wlr_output_layout_add_auto(output_layout, m->wlr_output);
+			wlr_output_layout_add(output_layout, m->wlr_output, m->m.x, m->m.y);
 
 	/* Now that we update the output layout we can get its box */
 	wlr_output_layout_get_box(output_layout, NULL, &sgeom);

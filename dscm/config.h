@@ -391,6 +391,12 @@ setter_monrule(void *cvar, SCM value)
 	SCM scale = dscm_assoc_ref(value, "scale");
 	SCM rr = dscm_assoc_ref(value, "transform");
 	SCM lt = dscm_assoc_ref(value, "layout");
+	SCM x = dscm_assoc_ref(value, "x");
+	SCM y = dscm_assoc_ref(value, "y");
+	SCM resx = dscm_assoc_ref(value, "width");
+	SCM resy = dscm_assoc_ref(value, "height");
+	SCM rate = dscm_assoc_ref(value, "refresh-rate");
+	SCM adaptive_sync = dscm_assoc_ref(value, "adaptive-sync?");
 
 	wl_list_for_each(r, lst, link) {
 		if ((!r->name && !name) || (r->name && name && !strcmp(r->name, name))) {
@@ -411,12 +417,18 @@ setter_monrule(void *cvar, SCM value)
 		r->rr = WL_OUTPUT_TRANSFORM_NORMAL;
 		r->nmaster = 1;
 		r->mfact = 0.55;
+		r->x = -1;
+		r->y = -1;
 		/* init.scm will always define a layout, so this will always work */
 		r->lt = wl_container_of(layouts.next, r->lt, link);
 
 		scm_dynwind_unwind_handler(free, r, 0);
 		if (name) scm_dynwind_unwind_handler(free, name, 0);
 	}
+
+	DSCM_ASSERT_TYPE(scm_is_bool(adaptive_sync),
+			 value, "set-rules", "adaptive-sync?", "bool");
+	r->adaptive_sync = scm_to_bool(adaptive_sync);
 
 	if (!scm_is_false(mfact)) {
 		DSCM_ASSERT_TYPE(scm_is_number(mfact),
@@ -432,6 +444,31 @@ setter_monrule(void *cvar, SCM value)
 		DSCM_ASSERT_TYPE(scm_is_integer(nmaster),
 				 value, "set-monitor-rules", "masters", "int");
 		r->nmaster = scm_to_int(nmaster);
+	}
+	if (!scm_is_false(x)) {
+		DSCM_ASSERT_TYPE(scm_is_integer(x),
+				 value, "set-monitor-rules", "x", "int");
+		r->x = scm_to_int(x);
+	}
+	if (!scm_is_false(y)) {
+		DSCM_ASSERT_TYPE(scm_is_integer(y),
+				 value, "set-monitor-rules", "y", "int");
+		r->y = scm_to_int(y);
+	}
+	if (!scm_is_false(resx)) {
+		DSCM_ASSERT_TYPE(scm_is_integer(resx),
+				 value, "set-monitor-rules", "width", "int");
+		r->resx = scm_to_int(resx);
+	}
+	if (!scm_is_false(resy)) {
+		DSCM_ASSERT_TYPE(scm_is_integer(resy),
+				 value, "set-monitor-rules", "height", "int");
+		r->resy = scm_to_int(resy);
+	}
+	if (!scm_is_false(rate)) {
+		DSCM_ASSERT_TYPE(scm_is_integer(rate),
+				 value, "set-monitor-rules", "refresh-rate", "int");
+		r->rate = scm_to_int(rate);
 	}
 	if (!scm_is_false(rr)) {
 		DSCM_ASSERT_TYPE(scm_is_symbol(rr),
@@ -583,7 +620,7 @@ reload_monrules()
 {
 	Monitor *m;
 	wl_list_for_each(m, &mons, link)
-		applymonrules(m);
+		applymonrules(m, 1);
 }
 
 static inline void
