@@ -54,15 +54,17 @@ specifying the UNIX-socket path.
 Note that this needs to be explicitly called in order for the REPL server to
 be started!
 "
-  (begin
-    (use-modules (system repl server))
+  (use-modules (system repl server))
+
+  (define (kill-server)
     (when (file-exists? %dwl:repl-socket-path)
-      (delete-file %dwl:repl-socket-path))
-    (spawn-server (make-unix-domain-server-socket #:path %dwl:repl-socket-path))
-    (add-hook! dwl:hook-quit
-               (lambda ()
-                 (delete-file %dwl:repl-socket-path)
-                 (stop-server-and-clients!)))))
+      (delete-file %dwl:repl-socket-path)
+      (stop-server-and-clients!)))
+
+  (unless (file-exists? %dwl:repl-socket-path)
+    (begin
+      (spawn-server (make-unix-domain-server-socket #:path %dwl:repl-socket-path))
+      (add-hook! dwl:hook-quit kill-server))))
 
 (define* (dwl:list-options)
   "Lists all available options that can be configured using the @code{set}
