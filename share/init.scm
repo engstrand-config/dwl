@@ -125,12 +125,12 @@ VIEW-MODIFIERS, and MOVE-MODIFIERS, respectively."
 ;; These can not be inhibited, but they can easily be overridden if needed.
 (setq tags (map number->string (iota 9 1)))
 
-;; Define layouts before monitor rules to make sure layout is available
-(set-layouts 'tile "[]=" 'dwl:tile)
+;; Define layouts before monitor rules to make sure layout is available.
+(set-layouts 'default "[]=" 'dwl:tile)
 
 ;; There must be a default monitor rule (i.e. with name == NULL)
 (set-monitor-rules '((masters . 1)
                      (master-factor . 0.55)
                      (scale . 1)
                      (transform . TRANSFORM-NORMAL)
-                     (layout . tile)))
+                     (layout . default)))

@@ -82,7 +82,7 @@ At least one layout must be set, which is why \fBdwl-guile\fP will automatically
 .B
 .RS
 .nf
-\fC(set-layouts 'tile "[]=" 'dwl:tile)
+\fC(set-layouts 'default "[]=" 'dwl:tile)
 \fP
 .fi
 .RE
@@ -94,7 +94,7 @@ Including both the \fBtile\fP and \fBmonocle\fP layouts can look like this:
 .B
 .RS
 .nf
-\fC(set-layouts 'tile "[]=" 'dwl:tile
+\fC(set-layouts 'default "[]=" 'dwl:tile
 .B
              'monocle "|M|" 'dwl:monocle)
 \fP
@@ -102,7 +102,7 @@ Including both the \fBtile\fP and \fBmonocle\fP layouts can look like this:
 .RE
 
 .PP
-Note that \fB'tile\fP and \fB'monocle\fP are unique identifiers for their respective layouts. A monitor rule can use these identifiers to assign a certain layout to a specific monitor. Adding a new layout with an identifier that already exists will simply override the options of the previous layout.
+Note that \fB'default\fP and \fB'monocle\fP are unique identifiers for their respective layouts. A monitor rule can use these identifiers to assign a certain layout to a specific monitor. Adding a new layout with an identifier that already exists will simply override the options of the previous layout.
 
 .SS "Monitor rules"
 .PP
@@ -120,7 +120,7 @@ A valid configuration file should contain at least one monitor rule without a sp
 .B
                      (transform . TRANSFORM-NORMAL)
 .B
-                     (layout . tile)))
+                     (layout . default)))
 \fP
 .fi
 .RE

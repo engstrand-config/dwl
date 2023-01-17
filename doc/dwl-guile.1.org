@@ -66,19 +66,19 @@ At least one layout must be set, which is why *dwl-guile* will automatically add
 
 .B
 #+begin_src scheme
-(set-layouts 'tile "[]=" 'dwl:tile)
+(set-layouts 'default "[]=" 'dwl:tile)
 #+end_src
 
 Including both the *tile* and *monocle* layouts can look like this:
 
 .B
 #+begin_src scheme
-(set-layouts 'tile "[]=" 'dwl:tile
+(set-layouts 'default "[]=" 'dwl:tile
 .B
              'monocle "|M|" 'dwl:monocle)
 #+end_src
 
-Note that *'tile* and *'monocle* are unique identifiers for their respective layouts. A monitor rule can use these identifiers to assign a certain layout to a specific monitor. Adding a new layout with an identifier that already exists will simply override the options of the previous layout.
+Note that *'default* and *'monocle* are unique identifiers for their respective layouts. A monitor rule can use these identifiers to assign a certain layout to a specific monitor. Adding a new layout with an identifier that already exists will simply override the options of the previous layout.
 
 ** Monitor rules
 A valid configuration file should contain at least one monitor rule without a specified *name* field, e.g.:
@@ -93,7 +93,7 @@ A valid configuration file should contain at least one monitor rule without a sp
 .B
                      (transform . TRANSFORM-NORMAL)
 .B
-                     (layout . tile)))
+                     (layout . default)))
 #+end_src
 
 To configure a dual-monitor setup with two horizontally adjacent monitors you could write something like this:
