@@ -1,5 +1,5 @@
 ;; Default bindings.
-;; This file will only be loaded if 'inhibit-defaults? is #t.
+;; This file will only be loaded if 'inhibit-defaults? is #f.
 
 (dwl:set-tty-keys "C-M")
 (dwl:set-tag-keys "s" "s-S")
