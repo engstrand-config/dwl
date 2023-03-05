@@ -107,6 +107,16 @@ setter_double(void *cvar, SCM value)
 }
 
 static inline void
+setter_accel_speed(void *cvar, SCM value)
+{
+	DSCM_ASSERT_TYPE(scm_is_number(value), value, "set", DSCM_ARG2, "double");
+	double speed = scm_to_double(value);
+	DSCM_ASSERT((speed >= -1 && speed <= 1),
+		    "Acceleration speed should be between -1 and 1: ~s", value);
+	(*((double*)cvar)) = speed;
+}
+
+static inline void
 setter_color(void *cvar, SCM value)
 {
 	DSCM_ASSERT_TYPE((scm_is_true(scm_list_p(value)) || scm_is_string(value)),
@@ -662,7 +672,7 @@ dscm_config_initialize()
 		    &setter_bool, &reload_libinput);
 
 	DSCM_DEFINE(accel_speed, "accel-speed", 0.0,
-		    &setter_double, &reload_libinput);
+		    &setter_accel_speed, &reload_libinput);
 	DSCM_DEFINE(accel_profile, "accel-profile",
 		    LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE,
 		    &setter_uint32, &reload_libinput);
