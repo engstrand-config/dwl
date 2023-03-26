@@ -73,6 +73,7 @@
 #define END(A)                  ((A) + LENGTH(A))
 #define LISTEN(E, L, H)         wl_signal_add((E), ((L)->notify = (H), (L)))
 #define IDLE_NOTIFY_ACTIVITY    wlr_idle_notify_activity(idle, seat), wlr_idle_notifier_v1_notify_activity(idle_notifier, seat)
+#define MAX_KEYCHORD_LAYERS     5
 
 /* enums */
 enum { CurNormal, CurPressed, CurMove, CurResize }; /* cursor */
@@ -133,6 +134,11 @@ typedef struct {
 typedef struct {
 	unsigned int mod;
 	unsigned int key;
+} Key;
+
+typedef struct {
+	Key keys[MAX_KEYCHORD_LAYERS];
+	unsigned int n;
 	unsigned int isbutton;
 	scm_t_bits *action;
 	struct wl_list link;
@@ -434,6 +440,7 @@ static struct wl_list mons;
 static Monitor *selmon;
 
 static int enablegaps = 1;   /* enables gaps, used by togglegaps */
+static unsigned int currentkey = 0; /* used to keep track of keychord sequences */
 
 /* global event handlers */
 static struct wl_listener cursor_axis = {.notify = axisnotify};
@@ -698,8 +705,9 @@ buttonpress(struct wl_listener *listener, void *data)
 		keyboard = wlr_seat_get_keyboard(seat);
 		mods = keyboard ? wlr_keyboard_get_modifiers(keyboard) : 0;
 		wl_list_for_each(b, &buttons, link) {
-			if (CLEANMASK(mods) == CLEANMASK(b->mod) &&
-			    event->button == b->key && b->action) {
+			/* Mouse bindings can only have one key. */
+			if (CLEANMASK(mods) == CLEANMASK(b->keys[0].mod) &&
+			    event->button == b->keys[0].key && b->action) {
 				dscm_safe_call(DSCM_CALL_ACTION, b->action, NULL);
 				return;
 			}
@@ -1543,15 +1551,22 @@ keybinding(uint32_t mods, xkb_keycode_t keycode)
 	 * processing keys, rather than passing them on to the client for its own
 	 * processing.
 	 */
-	int handled = 0;
+	int handled = 0, done = 0;
 	Binding *k;
 	wl_list_for_each(k, &keys, link) {
-		if (CLEANMASK(mods) == CLEANMASK(k->mod) &&
-		    keycode == (xkb_keycode_t)k->key && k->action) {
-			dscm_safe_call(DSCM_CALL_ACTION, k->action, NULL);
+		if (k->n <= currentkey) continue;
+		if (CLEANMASK(mods) == CLEANMASK(k->keys[currentkey].mod) &&
+		    keycode == (xkb_keycode_t)k->keys[currentkey].key) {
 			handled = 1;
+			if (currentkey == k->n - 1 && k->action) {
+				dscm_safe_call(DSCM_CALL_ACTION, k->action, NULL);
+				done = 1;
+			}
+			/* TODO: Keep break? Was not needed before. */
+			break;
 		}
 	}
+	currentkey = (!handled || done == 1) ? 0 : currentkey + 1;
 	return handled;
 }
 

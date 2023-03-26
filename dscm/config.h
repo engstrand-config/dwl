@@ -230,24 +230,31 @@ setter_binding(void *cvar, SCM value)
 	tmp.isbutton = 0;
 
 	/* Attempt to parse before any allocation */
-	dscm_parse_binding_sequence(&tmp, scm_to_locale_string(sequence));
+	char *seqstr = scm_to_locale_string(sequence);
+	dscm_parse_layered_binding_sequence(&tmp, seqstr);
+	free(seqstr);
 
 	struct wl_list *lst = tmp.isbutton ? &buttons : &keys;
 	wl_list_for_each(b, lst, link) {
-		if (b->key == tmp.key && b->mod == tmp.mod) {
-			b->key = tmp.key;
-			b->mod = tmp.mod;
-			b->isbutton = tmp.isbutton;
+		if (b->n != tmp.n) continue;
+
+		int match = 0;
+		for (unsigned int i = 0; i < b->n; i++)
+			if (b->keys[i].key == tmp.keys[i].key &&
+			    b->keys[i].mod == tmp.keys[i].mod)
+				match++;
+
+		if (b->n == match) {
 			b->action = dscm_get_pointer(action);
 			return;
 		}
 	}
 
 	b = calloc(1, sizeof(Binding));
-	b->key = tmp.key;
-	b->mod = tmp.mod;
 	b->isbutton = tmp.isbutton;
+	b->n = tmp.n;
 	b->action = dscm_get_pointer(action);
+	memcpy(b->keys, tmp.keys, sizeof(tmp.keys));
 	wl_list_insert(lst, &b->link);
 }
 
@@ -549,9 +556,10 @@ reload_layouts()
 {
 	Layout *l;
 	DscmClient *c;
-	wl_list_for_each(c, &dscm_clients, link)
-	    wl_list_for_each(l, &layouts, link)
-		    dscm_v1_send_layout(c->resource, l->symbol);
+	wl_list_for_each(c, &dscm_clients, link) {
+		wl_list_for_each(l, &layouts, link)
+			dscm_v1_send_layout(c->resource, l->symbol);
+	}
 }
 
 static inline void
@@ -585,8 +593,8 @@ reload_tags()
 	DscmClient *dc;
 	unsigned int newtags, update = 0;
 	wl_list_for_each(dc, &dscm_clients, link)
-	    for (int i = 0; i < numtags; i++)
-		    dscm_v1_send_tag(dc->resource, tags[i]);
+		for (int i = 0; i < numtags; i++)
+			dscm_v1_send_tag(dc->resource, tags[i]);
 	/* TODO: setmon will call printstatus, add flag to disable? */
 	wl_list_for_each(c, &clients, link) {
 		newtags = c->tags & TAGMASK;
@@ -655,7 +663,7 @@ dscm_config_initialize()
 
 	DSCM_DEFINE(default_alpha, "default-alpha", 1.0, &setter_double, NULL);
 	DSCM_DEFINE(bypass_surface_visibility, "bypass-surface-visibility", 1,
-		     &setter_uint, NULL);
+		    &setter_uint, NULL);
 
 	DSCM_DEFINE(repeat_rate, "repeat-rate", 50, &setter_uint, &reload_kbrepeat);
 	DSCM_DEFINE(repeat_delay, "repeat-delay", 300, &setter_uint, &reload_kbrepeat);
