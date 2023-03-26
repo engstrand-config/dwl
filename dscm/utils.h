@@ -94,10 +94,10 @@ dscm_get_tag(SCM tag, unsigned int max)
 }
 
 static inline unsigned int
-dscm_parse_binding_sequence(Key *k, char *sequence)
+dscm_parse_binding_sequence(Key *k, char *sequence, char *original)
 {
 	unsigned int isbutton = 0;
-	char *token, *next, *key, *ptr, *tmp;
+	char *token, *next, *key, *ptr;
 	if ((key = strpbrk(sequence, "<"))) {
 		SCM sym = scm_from_locale_string(key);
 		SCM keycode = scm_hash_ref(keycodes, sym, SCM_UNDEFINED);
@@ -107,15 +107,15 @@ dscm_parse_binding_sequence(Key *k, char *sequence)
 		}
 		DSCM_ASSERT((!scm_is_false(keycode)),
 			    "Invalid keysym ~s in bind sequence: ~s",
-			    sym, scm_from_locale_string(sequence));
+			    sym, scm_from_locale_string(original));
 		k->key = (xkb_keycode_t)scm_to_uint32(keycode);
 	} else if ((key = strpbrk(sequence, "["))) {
 		for (ptr = &key[1]; !(*ptr == '\0' || *ptr == ']'); ptr++)
 			DSCM_ASSERT(isdigit(*ptr),
 				    "Invalid keycode in bind sequence: ~s",
-				    scm_from_locale_string(sequence));
+				    scm_from_locale_string(original));
 		DSCM_ASSERT((*ptr == ']'), "Trailing ']' in bind sequence: ~s",
-			    scm_from_locale_string(sequence));
+			    scm_from_locale_string(original));
 		*ptr = '\0';
 		k->key = atoi(&key[1]);
 	}
@@ -126,9 +126,9 @@ dscm_parse_binding_sequence(Key *k, char *sequence)
 		key[0] = '\0';
 
 	k->mod = 0;
-	token = strtok_r(sequence, "-", &tmp);
+	token = strtok_r(sequence, "-", &sequence);
 	while (token) {
-		if ((next = strtok_r(NULL, "-", &tmp)) || key != NULL) {
+		if ((next = strtok_r(NULL, "-", &sequence)) || key != NULL) {
 			if (!strcmp(token, "C"))
 				k->mod |= WLR_MODIFIER_CTRL;
 			else if (!strcmp(token, "M"))
@@ -141,13 +141,13 @@ dscm_parse_binding_sequence(Key *k, char *sequence)
 				DSCM_ASSERT(0,
 					    "Invalid modifier '~s' in bind sequence: ~s",
 					    scm_from_locale_string(token),
-					    scm_from_locale_string(sequence));
+					    scm_from_locale_string(original));
 		} else {
 			SCM sym = scm_from_locale_string(token);
 			SCM keycode = scm_hash_ref(keycodes, sym, SCM_UNDEFINED);
 			DSCM_ASSERT((!scm_is_false(keycode)),
 				    "Invalid keysym ~s in bind sequence: ~s",
-				    sym, scm_from_locale_string(sequence));
+				    sym, scm_from_locale_string(original));
 			k->key = (xkb_keycode_t)scm_to_uint32(keycode);
 		}
 		token = next;
@@ -158,23 +158,25 @@ dscm_parse_binding_sequence(Key *k, char *sequence)
 static inline void
 dscm_parse_layered_binding_sequence(Binding *b, char *sequence)
 {
-	char *token = strtok_r(sequence, " ", &sequence);
+	char *original = strdup(sequence), *token = strtok_r(sequence, " ", &sequence);
 	unsigned int n = 0, isbutton = 0;
 	while (token != NULL) {
-		b->isbutton = dscm_parse_binding_sequence(&b->keys[n], token);
-		if (n >= 1) {
-			DSCM_ASSERT((n < MAX_KEYCHORD_LAYERS),
-				    "Maximum of ~a sequences allowed per binding: ~s",
+		b->isbutton = dscm_parse_binding_sequence(&b->keys[n], token, original);
+		n++;
+		if (n > 1) {
+			DSCM_ASSERT((n <= MAX_KEYCHORD_LAYERS),
+				    "Only ~a sequences allowed per binding, but ~a provided: ~s",
 				    scm_from_int(MAX_KEYCHORD_LAYERS),
-				    scm_from_locale_string(sequence));
+				    scm_from_int(n),
+				    scm_from_locale_string(original));
 			DSCM_ASSERT(!isbutton,
 				    "Mouse bindings can not use layered sequences: ~s",
-				    scm_from_locale_string(sequence));
+				    scm_from_locale_string(original));
 		}
-		n++;
 		token = strtok_r(NULL, " ", &sequence);
 	}
 	b->n = n;
+	free(original);
 }
 
 static inline SCM
