@@ -98,6 +98,7 @@ dscm_parse_binding_sequence(Key *k, char *sequence, char *original)
 {
 	unsigned int isbutton = 0;
 	char *token, *next, *key, *ptr;
+	k->key = 0;
 	if ((key = strpbrk(sequence, "<"))) {
 		SCM sym = scm_from_locale_string(key);
 		SCM keycode = scm_hash_ref(keycodes, sym, SCM_UNDEFINED);
@@ -109,7 +110,7 @@ dscm_parse_binding_sequence(Key *k, char *sequence, char *original)
 			    "Invalid keysym ~s in bind sequence: ~s",
 			    sym, scm_from_locale_string(original));
 		k->key = (xkb_keycode_t)scm_to_uint32(keycode);
-	} else if ((key = strpbrk(sequence, "["))) {
+	} else if ((key = strpbrk(sequence, "[")) && key[1] != '\0') {
 		for (ptr = &key[1]; !(*ptr == '\0' || *ptr == ']'); ptr++)
 			DSCM_ASSERT(isdigit(*ptr),
 				    "Invalid keycode in bind sequence: ~s",
@@ -120,10 +121,14 @@ dscm_parse_binding_sequence(Key *k, char *sequence, char *original)
 		k->key = atoi(&key[1]);
 	}
 
-	/* Replace < or [ with NULL to make sure that it is not included
-	   when parsing the modifiers. */
-	if (key != NULL)
+	if (k->key != 0)
+		/* Replace < or [ with NULL to make sure that it is not included
+		   when parsing the modifiers. */
 		key[0] = '\0';
+	else
+		/* No special key was found, assume that the last token
+		   delimited by '-' is the key. */
+		key = NULL;
 
 	k->mod = 0;
 	token = strtok_r(sequence, "-", &sequence);
