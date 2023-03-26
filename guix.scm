@@ -144,4 +144,9 @@
                 (let ((bin (string-append (assoc-ref outputs "out") "/bin")))
                   (rename-file (string-append bin "/dwl-guile")
                                (string-append bin "/dwl-guile-devel"))
-                  #t))))))))
+                  #t)))))
+      ;; Update socket path for development build to allow us to
+      ;; debug while still running normal dwl-guile in background.
+      ((#:make-flags make-flags ''())
+       #~(cons "REPL_SOCKET_PATH=/tmp/dwl-guile-devel.socket"
+               #$make-flags)))))

@@ -614,6 +614,10 @@ reload_tags()
 static inline void
 dscm_config_load()
 {
+	/* Allow use of separate socket paths depending on whether
+	   we are using a stable or development build. */
+	scm_c_define("%dwl:repl-socket-path", scm_from_locale_string(REPL_SOCKET_PATH));
+
 	if (firstload) scm_c_primitive_load(PREFIX "/share/dwl-guile/init.scm");
 	scm_c_primitive_load(config_file);
 

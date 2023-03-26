@@ -1,5 +1,3 @@
-(define %dwl:repl-socket-path "/tmp/dwl-guile.socket")
-
 ;; Sets a list of options and their corresponding values,
 ;; automatically quoting each option, transforming it into a symbol.
 ;; In other words, this can be used just like @code{set}, but without
@@ -56,6 +54,8 @@ be started!
 "
   (use-modules (system repl server))
 
+  ;; REPL socket path is dependent on the type of build, i.e. stable or devel.
+  ;; Therefore, this variable is set during the initial configuration load in C.
   (define (kill-server)
     (when (file-exists? %dwl:repl-socket-path)
       (delete-file %dwl:repl-socket-path)

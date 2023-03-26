@@ -2,6 +2,7 @@ PKG_CONFIG = pkg-config
 
 # paths
 PREFIX = /usr/local
+REPL_SOCKET_PATH = /tmp/dwl-guile.socket
 MANDIR = $(PREFIX)/share/man
 
 # Default compile flags (overridable by environment)
