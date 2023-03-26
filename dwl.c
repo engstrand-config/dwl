@@ -500,6 +500,7 @@ static Atom netatom[NetLast];
 #include "client.h"
 
 /* include guile config and bindings */
+#include "dscm/shared.h"
 #include "dscm/ipc.h"
 #include "dscm/keycodes.h"
 #include "dscm/utils.h"
@@ -2082,10 +2083,16 @@ void
 run(char *startup_cmd)
 {
 	/* Add a Unix socket to the Wayland display. */
+#ifdef DEVELOP
+	if ((wl_display_add_socket(dpy, WAYLAND_SOCKET_PATH)) == -1)
+		die("startup: display_add_socket");
+	setenv("WAYLAND_DISPLAY", WAYLAND_SOCKET_PATH, 1);
+#else
 	const char *socket = wl_display_add_socket_auto(dpy);
 	if (!socket)
 		die("startup: display_add_socket_auto");
 	setenv("WAYLAND_DISPLAY", socket, 1);
+#endif
 
 	/* Start the backend. This will enumerate outputs and inputs, become the DRM
 	 * master, etc */

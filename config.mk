@@ -2,12 +2,12 @@ PKG_CONFIG = pkg-config
 
 # paths
 PREFIX = /usr/local
-REPL_SOCKET_PATH = /tmp/dwl-guile.socket
 MANDIR = $(PREFIX)/share/man
 
 # Default compile flags (overridable by environment)
 CFLAGS ?= -g -Wall -Wextra -Werror -Wno-unused-parameter -Wno-sign-compare -Wno-unused-function -Wno-unused-variable -Wno-unused-result -Wdeclaration-after-statement
 
+DEBUGFLAGS =
 XWAYLAND =
 XLIBS =
 # Uncomment to build XWayland support

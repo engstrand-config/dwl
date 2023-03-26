@@ -145,8 +145,6 @@
                   (rename-file (string-append bin "/dwl-guile")
                                (string-append bin "/dwl-guile-devel"))
                   #t)))))
-      ;; Update socket path for development build to allow us to
-      ;; debug while still running normal dwl-guile in background.
+      ;; Enable development mode.
       ((#:make-flags make-flags ''())
-       #~(cons "REPL_SOCKET_PATH=/tmp/dwl-guile-devel.socket"
-               #$make-flags)))))
+       #~(cons "DEBUGFLAGS=-DDEVELOP" #$make-flags)))))

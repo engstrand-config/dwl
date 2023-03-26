@@ -2,6 +2,7 @@
 #include <string.h>
 #include <wayland-client.h>
 #include "ipc.h"
+#include "shared.h"
 #include "../util.h"
 #include "../dscm-unstable-v1-protocol-client.h"
 
@@ -52,7 +53,7 @@ int dscm_ipc_evaluate(char *exp)
 	if (!exp)
 		die("missing expression");
 
-	display = wl_display_connect(NULL);
+	display = wl_display_connect(WAYLAND_SOCKET_PATH);
 	if (!display)
 		die("could not connect to display, is dwl-guile running?");
 
