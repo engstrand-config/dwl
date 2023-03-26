@@ -169,15 +169,19 @@ dscm_parse_layered_binding_sequence(Binding *b, char *sequence)
 		b->isbutton = dscm_parse_binding_sequence(&b->keys[n], token, original);
 		n++;
 		if (n > 1) {
+			DSCM_ASSERT(!isbutton,
+				    "Mouse bindings can not use layered sequences: ~s",
+				    scm_from_locale_string(original));
+			DSCM_ASSERT((isbutton == b->isbutton),
+				    "Sequences can not contain both keys and mouse buttons: ~s",
+				    scm_from_locale_string(original));
 			DSCM_ASSERT((n <= MAX_KEYCHORD_LAYERS),
 				    "Only ~a sequences allowed per binding, but ~a provided: ~s",
 				    scm_from_int(MAX_KEYCHORD_LAYERS),
 				    scm_from_int(n),
 				    scm_from_locale_string(original));
-			DSCM_ASSERT(!isbutton,
-				    "Mouse bindings can not use layered sequences: ~s",
-				    scm_from_locale_string(original));
 		}
+		isbutton = b->isbutton;
 		token = strtok_r(NULL, " ", &sequence);
 	}
 	b->n = n;
