@@ -262,6 +262,82 @@ The action of a keybinding can be set in three ways:
 .PP
 Choose whichever method that is most convenient, but remember that the syntax-checking that comes with using symbols or lambda expressions might be useful if you must debug your configuration for some reason.
 
+.SH "ASYNCHRONOUS KEYBINDINGS"
+.PP
+For actions that does not return immediately, you can use \fBdwl:run-async\fP. This will allow you to specify a procedure that will be executed in a separate thread. If you need to handle the return value of this procedure, you can set the second argument to a callback that accepts this value as an argument, and returns a SEXP to be executed in the main Guile context. The reason for this is \fBthread safety\fP. Anytime you want to execute a longer running task (even if you are not using any \fBdwl:*\fP procedures inside it), you should always use \fBdwl:run-async\fP.
+
+.PP
+Note that you can safely execute long running actions using \fBdwl-guile -e "<sexp>"\fP, and you do not need to worry about thread safety. This is actually how \fBdwl:run-async\fP does it internally.
+
+.PP
+The following example shows how you could use this to spawn bemenu, show a list of tags, and view that tag in dwl-guile:
+
+.PP
+.B
+.RS
+.nf
+\fC(use-modules (ice-9 popen)
+.B
+             (ice-9 rdelim)
+.B
+             (ice-9 match)
+.B
+             (srfi srfi-1))
+.B
+
+;; Convert a list of tags to newline separated list that can be
+.B
+;; sent via stdin to bemenu.
+.B
+(define (serialize-tags)
+.B
+  (fold (lambda (tag acc)
+.B
+          (format #f "~a\n~a" tag acc))
+.B
+        ""
+.B
+        (reverse (iota 9 1))))
+.B
+
+;; Spawn bemenu and read the selected value
+.B
+(define (bemenu-tag-picker)
+.B
+  (call-with-values
+.B
+      (lambda ()
+.B
+        (pipeline `(("bemenu" "-i" "-p" "Go to tag"))))
+.B
+    (lambda (from to pids)
+.B
+      (display (serialize-clients) to)
+.B
+      (close-port to)
+.B
+      (let ((result (read-line from)))
+.B
+        (close-port from)
+.B
+        ;; Might want to check the exit status here as well
+.B
+        (string->number result)))))
+.B
+
+(set-keys "S-s-d"
+.B
+          (lambda ()
+.B
+            (dwl:run-async bemenu-tag-picker
+.B
+                           ;; Must return a SEXP
+.B
+                           (lambda (tag) `(dwl:view ,tag)))))
+\fP
+.fi
+.RE
+
 .SH "REPL SERVER"
 .PP
 \fBdwl-guile\fP can host a REPL server that listens on a Unix socket with default path \fB/tmp/dwl-guile.socket\fP (also available as variable \fB%dwl:repl-socket-path\fP).

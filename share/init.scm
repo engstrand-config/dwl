@@ -27,17 +27,24 @@
     ((setq rest ...)
      (apply set (setq-args rest ...)))))
 
-;; Evalutes EXPS asynchronously, without blocking the main thread.
-;;
-;; @example
-;; (eval-async
-;;  (sleep 2)
-;;  (dwl:toggle-fullscreen))
-;; @end example
-(define-syntax eval-async
-  (syntax-rules ()
-    ((_ exps ...)
-     ((@ (ice-9 futures) make-future) (lambda () (begin exps ...))))))
+(define* (dwl:run-async fn #:optional (callback #f))
+  "Evalutes FN asynchronously, without blocking the main thread.
+CALLBACK will be executed once FN has finished its execution, being
+passed the potential return value from FN. If no callback is provided,
+the return value will be ignored.
+
+For thread safety, FN should not make use of dwl-guile bindings, although
+some bindings can be used without issue, such as @code{dwl:spawn}. Instead,
+try to move dwl-guile calls to the callback."
+  ((@ (ice-9 futures) make-future)
+   (lambda ()
+     ;; This is a really hacky (but easy) solution for ensuring thread safety
+     ;; while still allowing for dwl-guile bindings to be called asynchronously.
+     ;; Essentially, we are executing a shell command from the Guile context
+     ;; in order to send a command to the main thread Guile context, via
+     ;; the Wayland socket. A lot of overhead, but speed is not of great concern
+     ;; when doing async calls (it is still quite fast).
+     (dwl:spawn dwl:%binary-path "-e" (object->string (callback (fn)))))))
 
 (define* (dwl:start-repl-server)
   "Starts a local Guile REPL server, listening on a UNIX socket at path
