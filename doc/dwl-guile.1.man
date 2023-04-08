@@ -340,7 +340,7 @@ The following example shows how you could use this to spawn bemenu, show a list 
 
 .SH "REPL SERVER"
 .PP
-\fBdwl-guile\fP can host a REPL server that listens on a Unix socket with default path \fB/tmp/dwl-guile.socket\fP (also available as variable \fB%dwl:repl-socket-path\fP).
+\fBdwl-guile\fP can host a REPL server that listens on a Unix socket with default path \fB/tmp/dwl-guile.socket\fP (also available as variable \fBdwl:%repl-socket-path\fP).
 You can connect to the REPL with e.g. the \fBgeiser\fP package for \fBemacs\fP (\fBM-x\fP \fBgeiser-connect-local\fP
 and point it to the aformentioned socket).
 

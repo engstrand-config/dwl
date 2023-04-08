@@ -624,7 +624,7 @@ dscm_config_load()
 {
 	/* Allow use of separate socket paths depending on whether
 	   we are using a stable or development build. */
-	scm_c_define("%dwl:repl-socket-path", scm_from_locale_string(REPL_SOCKET_PATH));
+	scm_c_define("dwl:%repl-socket-path", scm_from_locale_string(REPL_SOCKET_PATH));
 	scm_c_define("dwl:%binary-path", scm_from_locale_string(BINARY_PATH));
 
 	if (firstload) scm_c_primitive_load(PREFIX "/share/dwl-guile/init.scm");
@@ -653,7 +653,7 @@ dscm_config_initialize()
 	dscm_keycodes_initialize();
 
 	/* Expose configuration option metadata */
-	scm_c_define("%_DWL_METADATA", metadata);
+	scm_c_define("dwl:%metadata", metadata);
 
 	DSCM_DEFINE(inhibdef, "inhibit-defaults?", 0, &setter_bool, NULL);
 	DSCM_DEFINE(borderpx, "border-px", 1, &setter_uint, &reload_borderpx);

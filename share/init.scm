@@ -64,13 +64,13 @@ be started!
   ;; REPL socket path is dependent on the type of build, i.e. stable or devel.
   ;; Therefore, this variable is set during the initial configuration load in C.
   (define (kill-server)
-    (when (file-exists? %dwl:repl-socket-path)
-      (delete-file %dwl:repl-socket-path)
+    (when (file-exists? dwl:%repl-socket-path)
+      (delete-file dwl:%repl-socket-path)
       (stop-server-and-clients!)))
 
-  (unless (file-exists? %dwl:repl-socket-path)
+  (unless (file-exists? dwl:%repl-socket-path)
     (begin
-      (spawn-server (make-unix-domain-server-socket #:path %dwl:repl-socket-path))
+      (spawn-server (make-unix-domain-server-socket #:path dwl:%repl-socket-path))
       (add-hook! dwl:hook-quit kill-server))))
 
 (define* (dwl:list-options)
@@ -81,7 +81,7 @@ procedure."
      ;; Discard value since it just contains C-related metadata
      (cons key acc))
    '()
-   %_DWL_METADATA))
+   dwl:%metadata))
 
 (define* (dwl:list-keysyms)
   "Lists all available keysyms and their respective keycode that can be used
@@ -90,8 +90,8 @@ when binding keys and buttons using the @code{bind} procedure."
      (cons `(,key ,value) acc))
 
   (hash-fold iterator
-             (hash-fold iterator '() %_DWL_KEYCODES)
-             %_DWL_KEYCODES_MOUSE))
+             (hash-fold iterator '() dwl:%keycodes)
+             dwl:%keycodes-mouse))
 
 (define* (dwl:show-options)
   "Same as @code{dwl:list-options}, but the list of options are printed

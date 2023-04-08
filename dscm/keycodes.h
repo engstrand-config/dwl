@@ -12,8 +12,8 @@ dscm_keycodes_initialize()
 	keycodes_mouse = scm_make_hash_table(scm_from_int(3));
 
 	/* Expose keycodes */
-	scm_c_define("%_DWL_KEYCODES", keycodes);
-	scm_c_define("%_DWL_KEYCODES_MOUSE", keycodes_mouse);
+	scm_c_define("dwl:%keycodes", keycodes);
+	scm_c_define("dwl:%keycodes-mouse", keycodes_mouse);
 
 	scm_hash_set_x(keycodes, scm_from_locale_string("<escape>"), scm_from_int(9));
 	scm_hash_set_x(keycodes, scm_from_locale_string("1"), scm_from_int(10));

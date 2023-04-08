@@ -259,7 +259,7 @@ The following example shows how you could use this to spawn bemenu, show a list 
 #+end_src
 
 * REPL SERVER
-*dwl-guile* can host a REPL server that listens on a Unix socket with default path */tmp/dwl-guile.socket* (also available as variable *%dwl:repl-socket-path*).
+*dwl-guile* can host a REPL server that listens on a Unix socket with default path */tmp/dwl-guile.socket* (also available as variable *dwl:%repl-socket-path*).
 You can connect to the REPL with e.g. the *geiser* package for *emacs* (*M-x* *geiser-connect-local*
 and point it to the aformentioned socket).
 
