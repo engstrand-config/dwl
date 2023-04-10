@@ -497,7 +497,7 @@ reload_arrange()
 static inline void
 reload_rootcolor()
 {
-	/* Not set by upstream dwl in v0.4 */
+	wlr_scene_rect_set_color(root, rootcolor);
 }
 
 static inline void

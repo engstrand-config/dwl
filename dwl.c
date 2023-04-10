@@ -404,6 +404,7 @@ static struct wlr_scene_tree *layers[NUM_LAYERS];
 static struct wlr_renderer *drw;
 static struct wlr_allocator *alloc;
 static struct wlr_compositor *compositor;
+static struct wlr_scene_rect *root;
 
 static struct wlr_xdg_shell *xdg_shell;
 static struct wlr_xdg_activation_v1 *activation;
@@ -2369,6 +2370,7 @@ setup()
 
 	/* Initialize the scene graph used to lay out windows */
 	scene = wlr_scene_create();
+	root = wlr_scene_rect_create(&scene->tree, 0, 0, rootcolor);
 	layers[LyrBg] = wlr_scene_tree_create(&scene->tree);
 	layers[LyrBottom] = wlr_scene_tree_create(&scene->tree);
 	layers[LyrTile] = wlr_scene_tree_create(&scene->tree);
@@ -2759,6 +2761,7 @@ updatemons(struct wl_listener *listener, void *data)
 
 	/* Now that we update the output layout we can get its box */
 	wlr_output_layout_get_box(output_layout, NULL, &sgeom);
+	wlr_scene_rect_set_size(root, sgeom.width, sgeom.height);
 
 	/* Make sure the clients are hidden when dwl is locked */
 	wlr_scene_rect_set_size(locked_bg, sgeom.width, sgeom.height);
