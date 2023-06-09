@@ -81,6 +81,13 @@
             <arg name="status" type="uint" enum="eval_status"/>
         </event>
 
+        <event name="error">
+            <description summary="announces that an error occured in dwl-guile">
+              Sends out an error that ocurred in the Guile-context of dwl-guile.
+            </description>
+            <arg name="message" type="string"/>
+        </event>
+
         <event name="tag">
             <description summary="announces the presence of a tag">
                 This event is sent immediately after binding.

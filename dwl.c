@@ -250,6 +250,7 @@ typedef struct {
 } SessionLock;
 
 /* dscm protocol */
+static void dscm_senderror(char *message);
 static void dscm_sendevents(void);
 static void dscm_closemon(struct wl_client *client, struct wl_resource *resource);
 static void dscm_destroymon(struct wl_resource *resource);
@@ -3077,6 +3078,14 @@ xwaylandready(struct wl_listener *listener, void *data)
 #endif
 
 void
+dscm_senderror(char *message)
+{
+	DscmClient *c;
+	wl_list_for_each(c, &dscm_clients, link)
+		dscm_v1_send_error(c->resource, message);
+}
+
+void
 dscm_sendevents(void)
 {
 	Layout *l;
@@ -3315,7 +3324,7 @@ main(int argc, char *argv[])
 		else if (c == 'e')
 			return dscm_ipc_evaluate(optarg);
 		else if (c == 'v')
-			die("dwl v2.0.0");
+			die("dwl v2.0.1");
 		else
 			goto usage;
 	}

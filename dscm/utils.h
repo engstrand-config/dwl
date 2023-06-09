@@ -223,7 +223,7 @@ dscm_call_thread_handler(void *data, SCM key, SCM args)
 	return SCM_BOOL_T;
 }
 
-static inline void*
+static inline SCM
 dscm_call_action(void *data)
 {
 	dscm_call_data_t *call_data = data;
@@ -232,12 +232,26 @@ dscm_call_action(void *data)
 	return scm_call_0(call_data->proc);
 }
 
-static inline void*
+static inline SCM
 dscm_call_arrange(void *data)
 {
 	dscm_call_data_t *proc_data = (dscm_call_data_t*)data;
 	SCM mon = scm_from_pointer(proc_data->args, NULL);
 	return scm_call_1(proc_data->proc, mon);
+}
+
+static inline SCM
+dscm_safe_call_error_handler(void *data, SCM key, SCM args)
+{
+	SCM error = scm_apply_2(
+		scm_c_public_ref("guile", "format"),
+		SCM_BOOL_F,
+		scm_cadr(args),
+		scm_caddr(args));
+	char *errorstr = scm_to_locale_string(error);
+	dscm_senderror(errorstr);
+	free(errorstr);
+	return SCM_BOOL_T;
 }
 
 static inline void
@@ -246,10 +260,12 @@ dscm_safe_call(unsigned int type, scm_t_bits *proc_ptr, void *data)
 	if (proc_ptr == NULL)
 		die("dscm: could not call proc that is NULL");
 	SCM proc = SCM_PACK_POINTER(proc_ptr);
-	void*(*func)(void*) = type == DSCM_CALL_ARRANGE ?
+	dscm_call_data_t call_data = {.proc = proc, .args = data};
+	SCM(*func)(void*) = type == DSCM_CALL_ARRANGE ?
 		&dscm_call_arrange : &dscm_call_action;
-	scm_c_with_continuation_barrier(
-		func, &((dscm_call_data_t){.proc = proc, .args = data}));
+	/* Catch em all */
+	SCM ret = scm_c_catch(SCM_BOOL_T, func, &call_data,
+			      dscm_safe_call_error_handler, NULL, NULL, NULL);
 }
 
 static inline void
