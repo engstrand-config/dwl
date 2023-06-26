@@ -207,6 +207,7 @@ setter_xkb_rules(void *cvar, SCM value)
 		if (xkb->options) free((char*)xkb->options);
 	} else {
 		xkb = calloc(1, sizeof(struct xkb_rule_names));
+		(*((struct xkb_rule_names**)cvar)) = xkb;
 	}
 
 	xkb->rules = dscm_assoc_ref_string(value, "rules");
