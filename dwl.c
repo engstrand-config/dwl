@@ -3315,7 +3315,7 @@ main(int argc, char *argv[])
 		else if (c == 'e')
 			return dscm_ipc_evaluate(optarg);
 		else if (c == 'v')
-			die("dwl v2.0.2");
+			die("dwl v2.0.3");
 		else
 			goto usage;
 	}

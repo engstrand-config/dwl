@@ -127,7 +127,7 @@
   (inherit dwl)
   (source source)
   (name "dwl-guile-devel")
-  (version "2.0.2")
+  (version "2.0.3")
   (inputs
    (modify-inputs (package-inputs dwl)
                   (prepend guile-3.0
@@ -147,4 +147,4 @@
                   #t)))))
       ;; Enable development mode.
       ((#:make-flags make-flags ''())
-       #~(cons "DEBUGFLAGS=-DDEVELOP" #$make-flags)))))
+       #~(cons "DEBUGFLAGS=-DDEVELOP -ggdb" #$make-flags)))))

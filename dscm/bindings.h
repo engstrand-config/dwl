@@ -80,10 +80,13 @@ static inline SCM
 dscm_binding_setlayout(SCM value)
 {
 	char *id = scm_to_locale_string(value);
-	Layout *l, *layout;
-	wl_list_for_each(l, &layouts, link)
-		if (strcmp(l->id, id) == 0)
+	Layout *l, *layout = NULL;
+	wl_list_for_each(l, &layouts, link) {
+		if (strcmp(l->id, id) == 0) {
 			layout = l;
+			break;
+		}
+	}
 	if (layout == NULL)
 		return SCM_BOOL_F;
 	Arg a = {.v = layout};
