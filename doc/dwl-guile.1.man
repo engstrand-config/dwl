@@ -104,6 +104,19 @@ Including both the \fBtile\fP and \fBmonocle\fP layouts can look like this:
 .PP
 Note that \fB'default\fP and \fB'monocle\fP are unique identifiers for their respective layouts. A monitor rule can use these identifiers to assign a certain layout to a specific monitor. Adding a new layout with an identifier that already exists will simply override the options of the previous layout.
 
+.PP
+The layout identifiers are also used to select which layout to use, for example in a keybinding:
+
+.PP
+.B
+.RS
+.nf
+\fC(set-keys "s-m" '(dwl:set-layout "monocle"))
+\fP
+.fi
+.RE
+
+
 .SS "Monitor rules"
 .PP
 A valid configuration file should contain at least one monitor rule without a specified \fBname\fP field, e.g.:
