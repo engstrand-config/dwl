@@ -1,7 +1,7 @@
 * =dwl-guile=
 =dwl-guile= allows you to configure and interact with [[https://github.com/djpohly/dwl][ =dwl= ]] using [[https://www.gnu.org/software/guile/][GNU Guile]] through a startup configuration file and/or a REPL.
 
-=dwl-guile= is based on the latest version of =dwl= (v0.4) and will be continuously rebased against new versions.
+=dwl-guile= is based on the latest version of =dwl= (v0.4) and wlroots 0.16.x, and will be continuously rebased against new versions.
 
 ** Goal
 The main goal of =dwl-guile= is to serve as a minimal =dwm=-like Wayland compositor for those who use [[https://guix.gnu.org/][GNU Guix System]] --- a GNU/Linux distribution in which the user can customize and configure their entire system in GNU Guile.
